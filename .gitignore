@@ -1,4 +1,5 @@
 .vscode
+**/.vector_cache
 
 # OS generated files
 .DS_Store
@@ -13,6 +14,7 @@ Thumbs.db
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
+**/__pycache__
 *.py[cod]
 *.class
 
