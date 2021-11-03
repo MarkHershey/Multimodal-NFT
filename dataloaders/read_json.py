@@ -36,7 +36,8 @@ def load_data():
     nft_names = []
     pic_paths = []
     texts = []
-    labels = []
+    eth_prices = []
+
     for name in os.listdir(data_dir):
         if name.endswith(".txt"):
             nft_name = name[:-4]
@@ -80,10 +81,24 @@ def load_data():
         nft_names.append(nft_name)
         pic_paths.append(str(pic_path))
         texts.append(text_input)
-        labels.append(item_eth_price)
+        eth_prices.append(item_eth_price)
+
+    num_classes = 10
+    interval = (max(eth_prices) - min(eth_prices)) / num_classes
+    # print(max(eth_prices))
+    # print(min(eth_prices))
+    # print(interval)
+    labels = [int(x // interval) for x in eth_prices]
+    # for i in range(len(labels)):
+    #     print(eth_prices[i], labels[i])
 
     return nft_names, pic_paths, texts, labels
 
 
+def main():
+    nft_names, pic_paths, texts, labels = load_data()
+    print(len(labels))
+
+
 if __name__ == "__main__":
-    ...
+    main()

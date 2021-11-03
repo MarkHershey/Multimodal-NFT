@@ -113,9 +113,9 @@ class FeatureAggregation(nn.Module):
         self.activation = nn.ELU()
         self.dropout = nn.Dropout(0.15)
 
-    def forward(self, question_rep, visual_feat):
+    def forward(self, textual_rep, visual_feat):
         visual_feat = self.dropout(visual_feat)
-        t_proj = self.t_proj(question_rep)
+        t_proj = self.t_proj(textual_rep)
         v_proj = self.v_proj(visual_feat)
 
         v_q_cat = torch.cat((v_proj, t_proj.unsqueeze(1) * v_proj), dim=-1)
