@@ -12,6 +12,7 @@ class TextualInputModule(nn.Module):
     def __init__(
         self,
         vocab_size,
+        glove_matrix,
         wordvec_dim=300,
         rnn_dim=512,
         module_dim=512,
@@ -25,7 +26,9 @@ class TextualInputModule(nn.Module):
         if bidirectional:
             rnn_dim = rnn_dim // 2
 
-        self.encoder_embed = nn.Embedding(vocab_size, wordvec_dim)
+        self.encoder_embed = nn.Embedding(vocab_size, wordvec_dim).from_pretrained(
+            glove_matrix, freeze=False
+        )
         self.tanh = nn.Tanh()
         self.encoder = nn.LSTM(
             wordvec_dim, rnn_dim, batch_first=True, bidirectional=bidirectional
@@ -45,19 +48,24 @@ class TextualInputModule(nn.Module):
         """
         texts_embedding = self.encoder_embed(texts)  # (batch_size, seq_len, dim_word)
         embed = self.tanh(self.embedding_dropout(texts_embedding))
+
+        # Ref: https://pytorch.org/docs/stable/generated/torch.nn.utils.rnn.pack_padded_sequence.html
         embed = nn.utils.rnn.pack_padded_sequence(
-            embed, text_len, batch_first=True, enforce_sorted=False
+            input=embed,  # padded batch of variable length sequences
+            lengths=text_len,  #  list of sequence lengths of each batch element
+            batch_first=True,  # if True, the input is expected in B x T x * format.
+            enforce_sorted=False,  # If False, the input will get sorted unconditionally
         )
 
-        self.encoder.flatten_parameters()
-        _, (question_embedding, _) = self.encoder(embed)
-        if self.bidirectional:
-            question_embedding = torch.cat(
-                [question_embedding[0], question_embedding[1]], -1
-            )
-        question_embedding = self.text_dropout(question_embedding)
+        # self.encoder.flatten_parameters()
+        output, (h_n, c_n) = self.encoder(embed)
 
-        return question_embedding
+        if self.bidirectional:
+            h_n = torch.cat([h_n[0], h_n[1]], -1)
+
+        h_n = self.text_dropout(h_n)
+
+        return h_n
 
 
 class StillVisualInputModule(nn.Module):
@@ -81,7 +89,7 @@ class StillVisualInputModule(nn.Module):
         self.module_dim = module_dim
         self.activation = nn.ELU()
 
-    def forward(self, appearance_video_feat, motion_video_feat, question_embedding):
+    def forward(self, appearance_video_feat, motion_video_feat):
         """
         Args:
             appearance_video_feat: [Tensor] (batch_size, num_clips, num_frames, visual_inp_dim)
@@ -97,6 +105,14 @@ class StillVisualInputModule(nn.Module):
         clip_level_crn_outputs = []
         ...
         return ...
+
+
+class MotionVisualInputModule(nn.Module):
+    def __init__(self, dim):
+        super(MotionVisualInputModule, self).__init__()
+
+        self.dim = dim
+        self.activation = nn.ELU()
 
 
 class FeatureAggregation(nn.Module):
