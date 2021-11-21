@@ -1,7 +1,6 @@
-from pathlib import Path
-import os
 import json
-
+import os
+from pathlib import Path
 
 json_dir = Path("/home/mark/CODE/NOT_MINE/project_numpie/data/preprocessed/json")
 out_dir = Path("/home/mark/Data/MARK_NFT/json")
