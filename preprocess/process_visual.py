@@ -189,8 +189,11 @@ def get_video_paths(
                         continue
 
                 if video_file is not None:
-                    video_path = str((Path(media_dir) / video_file).resolve())
-                    video_paths.append((video_path, int(data["id"])))
+                    video_path = Path(media_dir).resolve() / video_file
+                    if video_path.is_file():
+                        video_paths.append((video_path, int(data["id"])))
+                    else:
+                        logger.error(f"{video_file} does not exists")
 
     return video_paths
 
@@ -270,7 +273,7 @@ def main():
         model,
         video_paths,
         frame_num=16,
-        h5_filepath="feats.h5",
+        h5_filepath="resnet18_feats.h5",
     )
 
 
