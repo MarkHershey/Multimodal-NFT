@@ -1,8 +1,7 @@
-torchtext
-spacy
-matplotlib
-h5py
-scikit-image
-scikit-video
-puts
 numpy
+spacy
+h5py
+matplotlib
+scikit-image
+sk-video==1.1.10
+puts==0.0.7
