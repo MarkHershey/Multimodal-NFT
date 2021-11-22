@@ -1,5 +1,7 @@
 .vscode
+*.h5
 **/.vector_cache
+**/logs
 
 # OS generated files
 .DS_Store

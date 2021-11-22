@@ -18,12 +18,13 @@ from torch import nn
 
 logger = get_logger(stream_only=False)
 
+device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+
 
 def build_resnet():
     cnn = torchvision.models.resnet18(pretrained=True)
     model = torch.nn.Sequential(*list(cnn.children())[:-1])
-    if torch.cuda.is_available():
-        model = model.cuda()
+    model = model.to(device)
     model.eval()
     return model
 
@@ -47,7 +48,7 @@ def run_batch(cur_batch, model):
     # NOTE:  torch.FloatTensor is CPU tensor, torch.cuda.FloatTensor is GPU tensor
     # cuda() returns a copy of this object in CUDA memory.
     # ref: https://pytorch.org/docs/stable/tensors.html?highlight=cuda#torch.Tensor.cuda
-    image_batch = torch.FloatTensor(image_batch).cuda()
+    image_batch = torch.FloatTensor(image_batch).to(device)
 
     # NOTE: torch.no_grad is a Context-manager that disabled gradient calculation
     # ref: https://pytorch.org/docs/stable/generated/torch.no_grad.html#torch.no_grad
@@ -67,6 +68,7 @@ def sample_video_frames(
     padding_mode: str = "edge",
     variable_sample_length: bool = False,
     tensor: bool = False,
+    verbose: bool = False,
 ) -> Tuple[np.ndarray, bool]:
     """
     Read and Sample frames from a video, outputs a numpy array of frames.
@@ -97,9 +99,11 @@ def sample_video_frames(
         vid_width = video_data.shape[2]
         vid_channel = video_data.shape[3]
 
-    except:
+    except Exception as e:
         logger.error(f"file error: {video_path}")
         valid = False
+        if verbose:
+            logger.exception(e)
         # return all ZERO features, valid = False
         return np.zeros(shape=(frame_num, 3, 224, 224)), valid
 
@@ -154,7 +158,6 @@ def sample_video_frames(
     video_data = video_data.transpose((0, 3, 1, 2))  # T, C, H, W
 
     if tensor:
-        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         video_data = torch.FloatTensor(video_data).to(device)
 
     return video_data, valid
@@ -262,11 +265,15 @@ def extract_feats_and_generate_h5(
                 f"{processed_count}/{dataset_size} ({processed_percent}%) processed. Estimated time left: {mins_left} mins"
             )
 
+    logger.info(f"processed count: {processed_count}")
+    logger.info(f"invalid count  : {invalid_count}")
+    return
+
 
 def main():
     video_paths = get_video_paths(
-        json_dir="/home/mark/Data/MARK_NFT/json",
-        media_dir="/home/mark/Data/MARK_NFT/media",
+        json_dir="/home/markhuang/Data/MARK_NFT/json",
+        media_dir="/home/markhuang/Data/MARK_NFT/media",
     )
     model = build_resnet()
     extract_feats_and_generate_h5(
@@ -278,12 +285,4 @@ def main():
 
 
 if __name__ == "__main__":
-    # data_root = Path("/home/mark/Data/Cawin-NFT2")
-    # gif = data_root / "jinglebe-nft-collection_2.gif"
-    # png = data_root / "doodles-official_1037.png"
-    # mp4 = data_root / "niftysaxspheres_321.mp4"
-
-    # sample_video_frames(str(png), 10)
-    # sample_video_frames(str(gif), 10)
-    # sample_video_frames(str(mp4), 10)
     main()
