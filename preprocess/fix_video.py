@@ -71,10 +71,10 @@ def main():
     for i in failed_videos:
         fixed = fix_single_video(i)
 
-    if fixed:
-        fixed_count += 1
-    else:
-        failed_count += 1
+        if fixed:
+            fixed_count += 1
+        else:
+            failed_count += 1
 
     print(f"Fixed {fixed_count} videos.")
     print(f"Failed {failed_count} videos.")
