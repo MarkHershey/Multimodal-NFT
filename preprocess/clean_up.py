@@ -2,8 +2,10 @@ import json
 import os
 from pathlib import Path
 
-new_json_dir = Path("/home/markhuang/Data/MARK_NFT/json")
-media_dir = Path("/home/markhuang/Data/MARK_NFT/media")
+import matplotlib.pyplot as plt
+
+new_json_dir = Path("/home/mark/Data/NFT_Dataset/json")
+media_dir = Path("/home/mark/Data/NFT_Dataset/media")
 
 
 def cleanup_1():
@@ -100,6 +102,71 @@ def cleanup_3():
                 json.dump(new_data, f, indent=4)
 
 
+def cleanup_4(number_of_classes=20):
+    """
+    1. Create price class label
+    """
+
+    all_prices = []
+
+    for filename in os.listdir(new_json_dir):
+        if filename.endswith(".json"):
+            json_path = new_json_dir / filename
+
+            with json_path.open() as f:
+                data = json.load(f)
+                f.close()
+
+            eth_price = int(data.get("eth_price"))
+            eth_price_decimal = int(data.get("eth_price_decimal"))
+            usd_price = data.get("usd_price")
+            if usd_price is None:
+                usd_price = 4300
+            usd_price = float(usd_price)
+
+            actual_price = usd_price * eth_price * (10 ** (-eth_price_decimal))
+            actual_price = round(actual_price, 2)
+            # print(actual_price)
+            all_prices.append(actual_price)
+
+    sorted_prices = sorted(all_prices)
+
+    percentile_prices = []
+    for i in range(number_of_classes):
+        percentile_idx = int(len(sorted_prices) * (i + 1) / number_of_classes) - 1
+        percentile_prices.append(sorted_prices[percentile_idx])
+
+    print(percentile_prices)
+
+    # Traverse for the second time
+    for filename in os.listdir(new_json_dir):
+        if filename.endswith(".json"):
+            json_path = new_json_dir / filename
+
+            with json_path.open() as f:
+                data = json.load(f)
+                f.close()
+
+            eth_price = int(data.get("eth_price"))
+            eth_price_decimal = int(data.get("eth_price_decimal"))
+            usd_price = data.get("usd_price")
+            if usd_price is None:
+                usd_price = 4300
+            usd_price = float(usd_price)
+
+            actual_price = usd_price * eth_price * (10 ** (-eth_price_decimal))
+            actual_price = round(actual_price, 2)
+
+            for idx, price in enumerate(percentile_prices):
+                if actual_price < price:
+                    data["price_class"] = idx
+                    break
+
+            with json_path.open("w") as f:
+                json.dump(data, f, indent=4)
+
+
 if __name__ == "__main__":
-    cleanup_2()
-    cleanup_3()
+    # cleanup_2()
+    # cleanup_3()
+    cleanup_4()

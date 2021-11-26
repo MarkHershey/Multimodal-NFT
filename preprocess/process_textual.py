@@ -8,7 +8,6 @@ from typing import Callable, Dict, List, Tuple
 import numpy as np
 import torchtext as text
 from torchtext.data.utils import get_tokenizer
-from torchtext.datasets import IMDB
 from torchtext.vocab import vocab as Vocab
 
 from utils import load_text_data
@@ -25,17 +24,15 @@ def decode(
     encoded_sequence: List[int],
     idx_to_token: dict,
     delim: str = None,
-    stop_at_end: bool = True,
 ) -> List[str]:
-    tokens = []
+    decoded_tokens = []
     for idx in encoded_sequence:
-        tokens.append(idx_to_token[idx])
-        if stop_at_end and tokens[-1] == "<END>":
-            break
+        decoded_tokens.append(idx_to_token[idx])
+
     if delim is None:
-        return tokens
-    else:
-        return delim.join(tokens)
+        return decoded_tokens
+    elif isinstance(delim, str):
+        return delim.join(decoded_tokens)
 
 
 def process_text_and_save(args, train=True):
