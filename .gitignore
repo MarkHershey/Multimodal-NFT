@@ -1,5 +1,6 @@
 .vscode
 *.h5
+*.pb
 **/.vector_cache
 **/logs
 
