@@ -1,6 +1,7 @@
 import json
 import os
 from pathlib import Path
+from typing import List
 
 import matplotlib.pyplot as plt
 
@@ -166,7 +167,26 @@ def cleanup_4(number_of_classes=20):
                 json.dump(data, f, indent=4)
 
 
+def get_all_unique_suffixes() -> List[str]:
+    unique_suffixes = set()
+    for filename in os.listdir(new_json_dir):
+        if filename.endswith(".json"):
+            json_path = new_json_dir / filename
+
+            with json_path.open() as f:
+                data = json.load(f)
+                f.close()
+
+            media_filenames = data.get("media_filenames", [])
+            for media_filename in media_filenames:
+                extension = Path(media_filename).suffix
+                unique_suffixes.add(extension)
+    print(unique_suffixes)
+    return list(unique_suffixes)
+
+
 if __name__ == "__main__":
     # cleanup_2()
     # cleanup_3()
-    cleanup_4()
+    # cleanup_4()
+    ...
