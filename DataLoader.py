@@ -48,17 +48,22 @@ class NFTDataLoader(DataLoader):
 
     def __init__(self, **kwargs):
         # 1. Collect data according to the kwargs during initilization.
-        self.batch_size = kwargs["batch_size"]
+        self.batch_size = kwargs.get("batch_size", 16)
+        self.json_dir = str(kwargs.pop("json_dir"))
+        self.image_feat_h5 = str(kwargs.pop("image_feat_h5"))
+        self.video_feat_h5 = str(kwargs.pop("video_feat_h5"))
 
-        json_dir = str(kwargs.pop("json_dir"))
-        video_features_path = str(kwargs.pop("video_features_path"))
+        # get image_id_to_h5_idx
+        print(f"loading image feature from {self.image_feat_h5}")
+        with h5py.File(self.image_feat_h5, "r") as f:
+            image_idx_to_id = f["ids"][()]
+        image_id_to_h5_idx = {str(vid): i for i, vid in enumerate(image_idx_to_id)}
 
-        print(f"loading video feature from {video_features_path}")
-
-        with h5py.File(video_features_path, "r") as f:
+        # get video_id_to_h5_idx
+        print(f"loading video feature from {self.video_feat_h5}")
+        with h5py.File(self.video_feat_h5, "r") as f:
             video_idx_to_id = f["ids"][()]
-
-        video_id_to_idx = {str(vid): i for i, vid in enumerate(video_idx_to_id)}
+        video_id_to_h5_idx = {str(vid): i for i, vid in enumerate(video_idx_to_id)}
 
         # 2. Build Dataset.
         self.dataset = NFTDataset()

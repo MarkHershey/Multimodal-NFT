@@ -9,6 +9,7 @@ import numpy as np
 import torchtext as text
 from torchtext.data.utils import get_tokenizer
 from torchtext.vocab import vocab as Vocab
+
 from utils import load_text_data
 
 

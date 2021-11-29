@@ -14,7 +14,6 @@ import torch
 import torchvision
 from PIL import Image
 from puts import get_logger
-from torch import nn
 
 logger = get_logger(stream_only=False)
 
@@ -194,7 +193,7 @@ def get_video_paths(
                 if video_file is not None:
                     video_path = Path(media_dir).resolve() / video_file
                     if video_path.is_file():
-                        video_paths.append((video_path, int(data["id"])))
+                        video_paths.append((str(video_path), int(data["id"])))
                     else:
                         logger.error(f"{video_file} does not exists")
 
@@ -271,16 +270,27 @@ def extract_feats_and_generate_h5(
 
 
 def main():
-    video_paths = get_video_paths(
-        json_dir="/home/markhuang/Data/MARK_NFT/json",
-        media_dir="/home/markhuang/Data/MARK_NFT/media",
-    )
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--json_dir", type=str, default="data/json")
+    parser.add_argument("--media_dir", type=str, default="data/media")
+    parser.add_argument("--h5_filepath", type=str, default="videos_feats.h5")
+    parser.add_argument("--frame_num", type=int, default=16)
+    parser.add_argument("--features_dim", type=int, default=512)
+    parser.add_argument("--device", type=str, default="cuda")
+    args = parser.parse_args()
+
     model = build_resnet()
+    video_paths = get_video_paths(
+        json_dir=args.json_dir,
+        media_dir=args.media_dir,
+    )
+
     extract_feats_and_generate_h5(
         model,
         video_paths,
-        frame_num=16,
-        h5_filepath="resnet18_feats.h5",
+        frame_num=args.frame_num,
+        h5_filepath=args.h5_filepath,
+        features_dim=args.features_dim,
     )
 
 
