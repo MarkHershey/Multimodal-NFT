@@ -1,5 +1,6 @@
 import argparse
 import json
+import logging
 import os
 import random
 import time
@@ -14,6 +15,7 @@ from PIL import Image
 from puts import get_logger
 
 logger = get_logger(stream_only=True)
+logger.setLevel(logging.INFO)
 
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
@@ -70,12 +72,24 @@ def read_image_to_tensor_slow(image_path: str, resize: bool = False) -> torch.Te
     return image.to(device)  # (1, 3, W, H)
 
 
-def read_image_to_tensor(image_path: str, resize: bool = False) -> torch.Tensor:
+def read_image_to_tensor(
+    image_path: str, resize: bool = False, max_width: int = 1000, max_height: int = 1000
+) -> torch.Tensor:
     assert Path(image_path).is_file()
-    image = Image.open(image_path)
+    try:
+        image = Image.open(image_path)
+    except Exception as e:
+        logger.warning(f"Error Image: {image_path}")
+        logger.error(e)
+        return torch.zeros(1, 3, 224, 224).to(device)
+
     if resize:
         image = image.resize((224, 224), Image.ANTIALIAS)
     image = torchvision.transforms.ToTensor()(image)  # (3, W, H)
+
+    if image.size(1) > max_width or image.size(2) > max_height:
+        image = torchvision.transforms.Resize((max_width, max_height))(image)
+
     image = image.unsqueeze(0)  # (3, W, H) -> (1, 3, W, H)
     return image.to(device)  # (1, 3, W, H)
 
@@ -171,6 +185,16 @@ def main():
         args.h5_filepath,
         args.features_dim,
     )
+
+
+def _test_image_io():
+    image_paths = get_image_paths(
+        json_dir="/home/mark/Data/NFT_Dataset/json",
+        media_dir="/home/mark/Data/NFT_Dataset/media",
+    )
+    for i in image_paths:
+        image = read_image_to_tensor(i[0])
+        print(image.shape)
 
 
 if __name__ == "__main__":
