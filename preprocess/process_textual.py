@@ -9,7 +9,6 @@ import numpy as np
 import torchtext as text
 from torchtext.data.utils import get_tokenizer
 from torchtext.vocab import vocab as Vocab
-
 from utils import load_text_data
 
 
@@ -40,6 +39,8 @@ def process_text_and_save(args, train=True):
     EMBEDDING_DIM = 300
     VOCAB_SIZE = 20000
 
+    ids: List[int]
+    texts: List[str]
     # Load texts data from NFT json labels
     ids, texts = load_text_data()
 
@@ -110,6 +111,8 @@ def process_text_and_save(args, train=True):
         embedding_matrix = None
 
     obj = {
+        "texts_ids": ids,
+        "texts_encoded": texts_encoded,
         "texts_encoded": texts_encoded,
         "texts_lengths": texts_lens,
         "embedding_matrix": embedding_matrix.numpy(),

@@ -87,6 +87,9 @@ def read_image_to_tensor(
         image = image.resize((224, 224), Image.ANTIALIAS)
     image = torchvision.transforms.ToTensor()(image)  # (3, W, H)
 
+    # Future work: Assert number of channels is 3
+    # currently there are some images with 4 channels or 1 channel
+
     if image.size(1) > max_width or image.size(2) > max_height:
         image = torchvision.transforms.Resize((max_width, max_height))(image)
 
@@ -122,7 +125,7 @@ def extract_feats_and_generate_h5(
 
     with h5py.File(h5_filepath, "w") as fd:
         feature_dataset = fd.create_dataset(
-            name="video_features",
+            name="image_features",
             shape=(dataset_size, features_dim),
             dtype=np.float32,
         )

@@ -47,8 +47,8 @@ def combine_text_desc(
 
 
 def load_text_data(data_dir: str = data_dir) -> Tuple[list, list]:
-    ids = []
-    texts = []
+    ids: List[int] = []
+    texts: List[str] = []
     for filename in os.listdir(data_dir):
         if filename.endswith(".json"):
             filepath = Path(data_dir) / filename
