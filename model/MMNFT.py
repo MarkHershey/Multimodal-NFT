@@ -69,50 +69,54 @@ class TextualInputModule(nn.Module):
 
 
 class StillVisualInputModule(nn.Module):
-    def __init__(
-        self,
-        k_max_frame_level,
-        k_max_clip_level,
-        spl_resolution,
-        vision_dim,
-        module_dim=512,
-    ):
+    def __init__(self, in_dim=1000, out_dim=500):
         super(StillVisualInputModule, self).__init__()
 
-        ...
-        self.clip_level_motion_proj = nn.Linear(vision_dim, module_dim)
-        self.video_level_motion_proj = nn.Linear(module_dim, module_dim)
-        self.appearance_feat_proj = nn.Linear(vision_dim, module_dim)
+        self.fc = nn.Linear(in_dim, out_dim)
+        self.activation = nn.ReLU()
 
-        self.question_embedding_proj = nn.Linear(module_dim, module_dim)
-
-        self.module_dim = module_dim
-        self.activation = nn.ELU()
-
-    def forward(self, appearance_video_feat, motion_video_feat):
+    def forward(self, image_feat):
         """
         Args:
-            appearance_video_feat: [Tensor] (batch_size, num_clips, num_frames, visual_inp_dim)
-            motion_video_feat: [Tensor] (batch_size, num_clips, visual_inp_dim)
-            question_embedding: [Tensor] (batch_size, module_dim)
+            image_feat: [Tensor] (batch_size, in_dim)
         return:
-            encoded video feature: [Tensor] (batch_size, N, module_dim)
+            image_feat representation [Tensor] (batch_size, out_dim)
         """
-        # print(">>> appearance_video_feat", appearance_video_feat.size())
-        # print(">>> motion_video_feat", motion_video_feat.size())
-        # print(">>> question_embedding", question_embedding.size())
-        batch_size = appearance_video_feat.size(0)
-        clip_level_crn_outputs = []
-        ...
-        return ...
+        image_feat = self.fc(image_feat)
+        image_feat = self.activation(image_feat)
+
+        return image_feat
 
 
 class MotionVisualInputModule(nn.Module):
-    def __init__(self, dim):
+    def __init__(self, in_dim=1000, out_dim=500):
         super(MotionVisualInputModule, self).__init__()
 
-        self.dim = dim
-        self.activation = nn.ELU()
+        self.temporal = nn.LSTM(
+            input_size=in_dim,
+            hidden_size=out_dim,
+            batch_first=True,
+            bidirectional=False,
+        )
+
+    def forward(self, motion_feat):
+
+        output, (h_n, c_n) = self.temporal(motion_feat)
+        print(f"MotionVisualInputModule temporal LSTM output.shape: {output.shape}")
+        return output[-1]
+
+
+class AudioInputModule(nn.Module):
+    def __init__(self, dim):
+        super(AudioInputModule, self).__init__()
+        # TODO: Implement Audio Input Module
+        ...
+        raise NotImplementedError()
+
+    def forward(self, audio_feat):
+        # TODO: Implement Audio Input Module
+        ...
+        raise NotImplementedError()
 
 
 class FeatureAggregation(nn.Module):
@@ -146,6 +150,25 @@ class FeatureAggregation(nn.Module):
         return v_distill
 
 
+class CLSOutputModule(nn.Module):
+    """Classification Output Module"""
+
+    def __init__(self, module_dim=512):
+        super(CLSOutputModule, self).__init__()
+
+        self.classifier = nn.Sequential(
+            nn.Dropout(0.15),
+            nn.Linear(module_dim * 4, module_dim),
+            nn.ELU(),
+            nn.BatchNorm1d(module_dim),
+            nn.Dropout(0.15),
+            nn.Linear(module_dim, 1),
+        )
+
+    def forward(self, aggregated_feat):
+        pred = self.classifier(aggregated_feat)
+
+
 class MMNFT(nn.Module):
     def __init__(
         self,
@@ -175,7 +198,7 @@ class MMNFT(nn.Module):
             vision_dim=vision_dim,
             module_dim=module_dim,
         )
-        self.output_unit = OutputUnitMultiChoices(module_dim=module_dim)
+        self.output_unit = CLSOutputModule(module_dim=module_dim)
 
         init_modules(self.modules(), w_init="xavier_uniform")
         nn.init.uniform_(self.linguistic_input_unit.encoder_embed.weight, -1.0, 1.0)
