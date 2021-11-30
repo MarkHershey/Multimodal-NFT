@@ -113,7 +113,6 @@ def process_text_and_save(args, train=True):
     obj = {
         "texts_ids": ids,
         "texts_encoded": texts_encoded,
-        "texts_encoded": texts_encoded,
         "texts_lengths": texts_lens,
         "embedding_matrix": embedding_matrix.numpy(),
     }

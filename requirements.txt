@@ -3,5 +3,6 @@ spacy
 h5py
 matplotlib
 scikit-image
+termcolor
 sk-video==1.1.10
 puts==0.0.7
