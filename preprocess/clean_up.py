@@ -103,7 +103,7 @@ def cleanup_3():
                 json.dump(new_data, f, indent=4)
 
 
-def cleanup_4(number_of_classes=20):
+def cleanup_4(number_of_classes=10):
     """
     1. Create price class label
     """
@@ -159,7 +159,7 @@ def cleanup_4(number_of_classes=20):
             actual_price = round(actual_price, 2)
 
             for idx, price in enumerate(percentile_prices):
-                if actual_price < price:
+                if actual_price <= price:
                     data["price_class"] = idx
                     break
 
@@ -188,5 +188,5 @@ def get_all_unique_suffixes() -> List[str]:
 if __name__ == "__main__":
     # cleanup_2()
     # cleanup_3()
-    # cleanup_4()
+    cleanup_4(number_of_classes=10)
     ...

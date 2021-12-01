@@ -3,18 +3,13 @@ import math
 import os
 import pickle
 from pathlib import Path
-from typing import Dict, List, Optional, Union
+from typing import Dict, List, Union
 
 import h5py
-import matplotlib.pyplot as plt
 import numpy as np
 
-# import pandas as pd
 import torch
 from torch.utils.data import DataLoader, Dataset
-from torchvision import datasets
-from torchvision.io import read_image
-from torchvision.transforms import ToTensor
 
 
 class NFTDataset(Dataset):
@@ -174,19 +169,23 @@ class NFTDataLoader(DataLoader):
 
 if __name__ == "__main__":
     print("Test DataLoader...")
+    json_dir = "/home/markhuang/Data/NFT_Dataset/json"
     all_json_names = []
-    for i in os.listdir("/home/mark/Data/NFT_Dataset/json"):
+    for i in os.listdir(json_dir):
         if i.endswith(".json"):
             all_json_names.append(i)
 
     train_loader_kwargs = {
         "batch_size": 16,
-        "json_dir": "/home/mark/Data/NFT_Dataset/json",
+        "json_dir": json_dir,
         "json_names": all_json_names,
-        "text_pickle": "/home/mark/CODE/DEEP_LEARNING/Multimodal-NFT/data/encoded_text.pickle",
-        "image_feat_h5": "/home/mark/Data/NFT_Dataset/features/resnet18_feats.h5",
-        "video_feat_h5": cfg.video_feat_h5,
+        "text_pickle": "/home/markhuang/Data/NFT_Dataset/features/encoded_text.pickle",
+        "image_feat_h5": "/home/markhuang/Data/NFT_Dataset/features/images_feats.h5",
+        "video_feat_h5": "/home/markhuang/Data/NFT_Dataset/features/video_feats.h5",
         "num_workers": 0,
         "shuffle": True,
     }
     train_loader = NFTDataLoader(**train_loader_kwargs)
+
+    print(f"dataloader length: {len(train_loader)} (batches)")
+    print(f"dataset length: {len(train_loader.dataset)} (samples)")
