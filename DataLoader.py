@@ -7,7 +7,6 @@ from typing import Dict, List, Union
 
 import h5py
 import numpy as np
-
 import torch
 from torch.utils.data import DataLoader, Dataset
 
@@ -180,7 +179,7 @@ if __name__ == "__main__":
         "json_dir": json_dir,
         "json_names": all_json_names,
         "text_pickle": "/home/markhuang/Data/NFT_Dataset/features/encoded_text.pickle",
-        "image_feat_h5": "/home/markhuang/Data/NFT_Dataset/features/images_feats.h5",
+        "image_feat_h5": "/home/markhuang/Data/NFT_Dataset/features/image_feats.h5",
         "video_feat_h5": "/home/markhuang/Data/NFT_Dataset/features/video_feats.h5",
         "num_workers": 0,
         "shuffle": True,

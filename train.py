@@ -1,6 +1,4 @@
-# built-in
 import argparse
-import importlib
 import logging
 import os
 import random
@@ -18,8 +16,6 @@ from termcolor import colored
 from config import ExpConfigs
 from DataLoader import NFTDataLoader
 from model.MMNFT import MMNFT
-
-logger = get_logger()
 
 
 def train(cfg: ExpConfigs):
@@ -53,7 +49,7 @@ def train(cfg: ExpConfigs):
     logger.info(f"Number of train instances: {len(train_loader.dataset)}")
 
     # load validation data
-    if cfg.val.flag:
+    if cfg.val_flag:
         val_loader_kwargs = {
             "batch_size": cfg.batch_size,
             "json_dir": cfg.json_dir,
@@ -69,9 +65,6 @@ def train(cfg: ExpConfigs):
 
     ###########################################################################
 
-    if cfg.resume_from_checkpoint:
-        ...
-
     device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
     if not cfg.use_all_gpus:
         os.environ["CUDA_VISIBLE_DEVICES"] = cfg.gpu_ids
@@ -85,31 +78,38 @@ def train(cfg: ExpConfigs):
 
     model = MMNFT(**model_kwargs).to(device)
 
+    # print model info
     pytorch_total_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
     logger.info("num of params: {}".format(pytorch_total_params))
     logger.info(model)
 
-    if cfg.train.glove:
-        logger.info("Load GloVe vectors")
-        train_loader.glove_matrix = torch.FloatTensor(train_loader.glove_matrix).to(
-            device
-        )
-        with torch.no_grad():
-            model.linguistic_input_unit.encoder_embed.weight.set_(
-                train_loader.glove_matrix
-            )
+    # if cfg.train.glove:
+    #     logger.info("Load GloVe vectors")
+    #     train_loader.glove_matrix = torch.FloatTensor(train_loader.glove_matrix).to(
+    #         device
+    #     )
+    #     with torch.no_grad():
+    #         model.textual_input_module.encoder_embed.weight.set_(
+    #             train_loader.glove_matrix
+    #         )
 
     if torch.cuda.device_count() > 1:
-        logger.info(f"Using {torch.cuda.device_count()} GPUs")
         # use all visible GPUs
         model = nn.DataParallel(model)
+        logger.info(f"Using {torch.cuda.device_count()} GPUs")
+
+    if cfg.deterministic:
+        # NOTE: REPRODUCIBILITY
+        # Ref: https://pytorch.org/docs/stable/notes/randomness.html
+        torch.use_deterministic_algorithms(True)
+        torch.backends.cudnn.benchmark = False
 
     # get optimizer
     optimizer_func = getattr(optim, cfg.optimizer)
     optimizer = optimizer_func(model.parameters(), lr=cfg.learning_rate).to(device)
 
     start_epoch = 0
-    best_val = 100.0 if cfg.task == "regression" else 0
+    best_val = 0 if cfg.task == "classification" else 100.0
 
     if cfg.restore_flag:
         logger.info("Restore checkpoint and optimizer...")
@@ -124,7 +124,9 @@ def train(cfg: ExpConfigs):
     elif cfg.task == "regression":
         criterion = nn.MSELoss().to(device)
 
+    ###########################################################################
     logger.info("Start training........")
+
     for epoch in range(start_epoch, cfg.max_epochs):
         print(
             ">>>>>> epoch {epoch} <<<<<<".format(
@@ -297,10 +299,15 @@ def main():
     args = parser.parse_args()
 
     # Load config file
-    if args.conf:
+    if args.cfg:
         cfg = ExpConfigs.load(args.conf)
     else:
         cfg = ExpConfigs()
+
+    # init logger
+    global logger
+    logger = get_logger(log_dir=cfg.log_dir, stream_only=cfg.stream_log_only)
+    logger.setLevel(logging.INFO)
 
     # Set random seed
     torch.manual_seed(cfg.seed)

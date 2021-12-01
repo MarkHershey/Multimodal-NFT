@@ -172,36 +172,34 @@ class CLSOutputModule(nn.Module):
 class MMNFT(nn.Module):
     def __init__(
         self,
-        vision_dim,
+        vocab_size,
+        glove_matrix,
+        wordvec_dim,
         module_dim,
         word_dim,
-        k_max_frame_level,
-        k_max_clip_level,
-        spl_resolution,
+        visual_in_dim: int,
+        motion_in_frames: int,
+        motion_in_dim: int,
         vocab,
+        task: str = "classification",
     ):
         super(MMNFT, self).__init__()
 
+        self.textual_input_module = TextualInputModule(
+            vocab_size=vocab_size,
+            glove_matrix=glove_matrix,
+            wordvec_dim=wordvec_dim,
+        )
+        self.still_visual_input_module = StillVisualInputModule()
+        self.motion_visual_input_module = MotionVisualInputModule()
         self.feature_aggregation = FeatureAggregation(module_dim)
 
-        encoder_vocab_size = len(vocab["question_answer_token_to_idx"])
-        self.linguistic_input_unit = TextualInputModule(
-            vocab_size=encoder_vocab_size,
-            wordvec_dim=word_dim,
-            module_dim=module_dim,
-            rnn_dim=module_dim,
-        )
-        self.visual_input_unit = StillVisualInputModule(
-            k_max_frame_level=k_max_frame_level,
-            k_max_clip_level=k_max_clip_level,
-            spl_resolution=spl_resolution,
-            vision_dim=vision_dim,
-            module_dim=module_dim,
-        )
-        self.output_unit = CLSOutputModule(module_dim=module_dim)
+        if task == "classification":
+            self.output_module = CLSOutputModule(module_dim)
+        else:
+            raise NotImplementedError()
 
-        init_modules(self.modules(), w_init="xavier_uniform")
-        nn.init.uniform_(self.linguistic_input_unit.encoder_embed.weight, -1.0, 1.0)
+        self.output_module = CLSOutputModule(module_dim=module_dim)
 
     def forward(
         self,
@@ -210,17 +208,7 @@ class MMNFT(nn.Module):
         question,
         question_len,
     ):
-        """
-        Args:
-            ans_candidates: [Tensor] (batch_size, 4, max_ans_candidates_length)
-            ans_candidates_len: [Tensor] (batch_size, 4)
-            video_appearance_feat: [Tensor] (batch_size, num_clips, num_frames, visual_inp_dim)
-            video_motion_feat: [Tensor] (batch_size, num_clips, visual_inp_dim)
-            question: [Tensor] (batch_size, max_question_length)
-            question_len: [Tensor] (batch_size)
-        return:
-            logits.
-        """
+
         batch_size = question.size(0)
 
         question_embedding = self.linguistic_input_unit(question, question_len)
