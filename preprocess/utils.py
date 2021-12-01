@@ -1,15 +1,10 @@
 import json
 import os
 import re
-from collections import Counter
 from pathlib import Path
-from pprint import pprint
-from typing import List, Optional, Tuple
+from typing import List, Tuple
 
 from bs4 import BeautifulSoup
-
-data_dir = "/home/mark/Data/NFT_Dataset/json"
-media_dir = "/home/mark/Data/NFT_Dataset/media"
 
 
 def clean_text(text: str) -> str:
@@ -46,12 +41,12 @@ def combine_text_desc(
         return f"{i_name} {i_desc} {c_name} {c_desc}"
 
 
-def load_text_data(data_dir: str = data_dir) -> Tuple[list, list]:
+def load_text_data(json_dir: str) -> Tuple[list, list]:
     ids: List[int] = []
     texts: List[str] = []
-    for filename in os.listdir(data_dir):
+    for filename in os.listdir(json_dir):
         if filename.endswith(".json"):
-            filepath = Path(data_dir) / filename
+            filepath = Path(json_dir) / filename
             with filepath.open() as f:
                 json_data = json.load(f)
                 f.close()
@@ -72,7 +67,10 @@ def load_text_data(data_dir: str = data_dir) -> Tuple[list, list]:
 
 
 def main():
-    ...
+    json_dir = "/home/mark/Data/NFT_Dataset/json"
+    ids, texts = load_text_data(json_dir=json_dir)
+    for i in range(10):
+        print(f"{ids[i]}: {texts[i]}")
 
 
 if __name__ == "__main__":

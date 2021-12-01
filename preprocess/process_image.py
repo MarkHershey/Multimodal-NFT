@@ -2,7 +2,6 @@ import argparse
 import json
 import logging
 import os
-import random
 import time
 from pathlib import Path
 from typing import List, Tuple, Union
@@ -16,9 +15,6 @@ from puts import get_logger
 
 logger = get_logger(stream_only=True)
 logger.setLevel(logging.INFO)
-
-os.environ["CUDA_VISIBLE_DEVICES"] = "0"
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 
 def build_resnet50():
@@ -186,7 +182,12 @@ def main():
     parser.add_argument("--media_dir", type=str, required=True)
     parser.add_argument("--h5_filepath", type=str, default="images_feats.h5")
     parser.add_argument("--features_dim", type=int, default=1000)
+    parser.add_argument("--device", type=str, default="0")
     args = parser.parse_args()
+
+    os.environ["CUDA_VISIBLE_DEVICES"] = str(args.device)
+    global device
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     model = build_resnet50()
     image_paths = get_image_paths(
