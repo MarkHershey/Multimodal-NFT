@@ -1,5 +1,6 @@
 import argparse
 import json
+import logging
 import os
 import random
 import time
@@ -15,9 +16,11 @@ import torchvision
 from PIL import Image
 from puts import get_logger
 
-logger = get_logger(stream_only=False)
+logger = get_logger(stream_only=True)
+logger.setLevel(logging.INFO)
 
-device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+os.environ["CUDA_VISIBLE_DEVICES"] = "0"
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 
 def build_resnet():
@@ -271,8 +274,8 @@ def extract_feats_and_generate_h5(
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--json_dir", type=str, default="data/json")
-    parser.add_argument("--media_dir", type=str, default="data/media")
+    parser.add_argument("--json_dir", type=str, required=True)
+    parser.add_argument("--media_dir", type=str, required=True)
     parser.add_argument("--h5_filepath", type=str, default="videos_feats.h5")
     parser.add_argument("--frame_num", type=int, default=16)
     parser.add_argument("--features_dim", type=int, default=512)

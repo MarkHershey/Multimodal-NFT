@@ -10,6 +10,7 @@ import numpy as np
 import torchtext as text
 from torchtext.data.utils import get_tokenizer
 from torchtext.vocab import vocab as Vocab
+
 from utils import load_text_data
 
 
@@ -36,6 +37,7 @@ def decode(
 
 
 def process_text_and_save(
+    json_dir,
     embedding_dim=300,
     max_vocab_size=20000,
     save_path: str = "encoded_text.pickle",
@@ -48,9 +50,10 @@ def process_text_and_save(
     ids: List[int]
     texts: List[str]
     # Load texts data from NFT json labels
-    ids, texts = load_text_data()
+    ids, texts = load_text_data(json_dir)
 
     # Load English tokenizer
+    # NOTE: require: python -m spacy download en_core_web_sm
     tokenizer: Callable = get_tokenizer("spacy", language="en")
 
     ### Load vocab from disk for testing or build vocab for training
@@ -131,6 +134,7 @@ def process_text_and_save(
 
 def main():
     parser = argparse.ArgumentParser()
+    parser.add_argument("--json_dir", type=str, required=True)
     parser.add_argument("--embedding_dim", type=int, default=300)
     parser.add_argument("--max_vocab_size", type=int, default=20000)
     parser.add_argument("--save_path", type=str, default="encoded_text.pickle")
@@ -138,6 +142,7 @@ def main():
     args = parser.parse_args()
 
     process_text_and_save(
+        json_dir=args.json_dir,
         embedding_dim=args.embedding_dim,
         max_vocab_size=args.max_vocab_size,
         save_path=args.save_path,

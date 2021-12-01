@@ -106,6 +106,7 @@ class NFTDataLoader(DataLoader):
         # 1. Collect data according to the kwargs during initilization.
         self.batch_size = kwargs.get("batch_size", 16)
         self.json_dir = str(kwargs.pop("json_dir"))
+        self.json_names: List[str] = kwargs.pop("json_names")
         self.text_pickle = str(kwargs.pop("text_pickle"))
         self.image_feat_h5 = str(kwargs.pop("image_feat_h5"))
         self.video_feat_h5 = str(kwargs.pop("video_feat_h5"))
@@ -125,7 +126,7 @@ class NFTDataLoader(DataLoader):
         labels: Dict[int, int] = {}
         print(f"loading labels from {self.json_dir}")
         assert Path(self.json_dir).is_dir()
-        for json_name in os.listdir(self.json_dir):
+        for json_name in self.json_names:
             if not json_name.endswith(".json"):
                 continue
             json_path = Path(self.json_dir) / json_name
@@ -169,3 +170,23 @@ class NFTDataLoader(DataLoader):
         def __len__(self):
             # this is number of batches
             return math.ceil(len(self.dataset) / self.batch_size)
+
+
+if __name__ == "__main__":
+    print("Test DataLoader...")
+    all_json_names = []
+    for i in os.listdir("/home/mark/Data/NFT_Dataset/json"):
+        if i.endswith(".json"):
+            all_json_names.append(i)
+
+    train_loader_kwargs = {
+        "batch_size": 16,
+        "json_dir": "/home/mark/Data/NFT_Dataset/json",
+        "json_names": all_json_names,
+        "text_pickle": "/home/mark/CODE/DEEP_LEARNING/Multimodal-NFT/data/encoded_text.pickle",
+        "image_feat_h5": "/home/mark/Data/NFT_Dataset/features/resnet18_feats.h5",
+        "video_feat_h5": cfg.video_feat_h5,
+        "num_workers": 0,
+        "shuffle": True,
+    }
+    train_loader = NFTDataLoader(**train_loader_kwargs)

@@ -17,7 +17,8 @@ from puts import get_logger
 logger = get_logger(stream_only=True)
 logger.setLevel(logging.INFO)
 
-device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+os.environ["CUDA_VISIBLE_DEVICES"] = "0"
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 
 def build_resnet50():
@@ -169,6 +170,16 @@ def extract_feats_and_generate_h5(
     return
 
 
+def _test_image_io():
+    image_paths = get_image_paths(
+        json_dir="/home/mark/Data/NFT_Dataset/json",
+        media_dir="/home/mark/Data/NFT_Dataset/media",
+    )
+    for i in image_paths:
+        image = read_image_to_tensor(i[0])
+        print(image.shape)
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--json_dir", type=str, required=True)
@@ -188,16 +199,6 @@ def main():
         args.h5_filepath,
         args.features_dim,
     )
-
-
-def _test_image_io():
-    image_paths = get_image_paths(
-        json_dir="/home/mark/Data/NFT_Dataset/json",
-        media_dir="/home/mark/Data/NFT_Dataset/media",
-    )
-    for i in image_paths:
-        image = read_image_to_tensor(i[0])
-        print(image.shape)
 
 
 if __name__ == "__main__":

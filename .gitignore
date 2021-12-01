@@ -1,6 +1,7 @@
 .vscode
 *.h5
 *.pb
+*.pickle
 **/.vector_cache
 **/logs
 
