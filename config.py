@@ -27,6 +27,12 @@ default_configs = dict(
     audio_feat_h5="",  # preprocessed audio feature h5 file path
     # Model related
     word_dim=300,  # word embedding dimension
+    text_rnn_dim=512,  # image feature dimension
+    visual_in_dim=1000,  # image feature dimension
+    motion_in_frames=16,  # number of frames sampled per video
+    motion_in_dim=512,  # video feature dimension
+    agg_in_dim=256,  # feature aggregation input dimension
+    agg_out_dim=256,  # feature aggregation output dimension
     # misc
     seed=0,  # seed for random number generator
     gpu_ids="0",  # specify single or multiple GPU id to use

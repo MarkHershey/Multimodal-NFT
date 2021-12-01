@@ -12,31 +12,31 @@ class TextualInputModule(nn.Module):
     def __init__(
         self,
         vocab_size,
+        wordvec_dim,
         glove_matrix,
-        wordvec_dim=300,
         rnn_dim=512,
-        module_dim=512,
+        out_dim=256,
         bidirectional=True,
     ):
         super(TextualInputModule, self).__init__()
 
-        self.dim = module_dim
-
         self.bidirectional = bidirectional
         if bidirectional:
-            rnn_dim = rnn_dim // 2
+            half_rnn_dim = rnn_dim // 2
 
         self.encoder_embed = nn.Embedding(vocab_size, wordvec_dim).from_pretrained(
-            glove_matrix, freeze=False
-        )
-        self.tanh = nn.Tanh()
-        self.encoder = nn.LSTM(
-            wordvec_dim, rnn_dim, batch_first=True, bidirectional=bidirectional
+            glove_matrix, freeze=True
         )
         self.embedding_dropout = nn.Dropout(p=0.15)
+        self.tanh = nn.Tanh()
+        self.encoder = nn.LSTM(
+            wordvec_dim,
+            half_rnn_dim,
+            batch_first=True,
+            bidirectional=bidirectional,
+        )
         self.text_dropout = nn.Dropout(p=0.18)
-
-        self.module_dim = module_dim
+        self.fc = nn.Linear(rnn_dim, out_dim)
 
     def forward(self, texts, text_len: int):
         """
@@ -64,46 +64,55 @@ class TextualInputModule(nn.Module):
             h_n = torch.cat([h_n[0], h_n[1]], -1)
 
         h_n = self.text_dropout(h_n)
+        output = self.fc(h_n)
 
-        return h_n
+        print(f"TextualInputModule output.shape: {output.shape}")
+
+        return output
 
 
 class StillVisualInputModule(nn.Module):
-    def __init__(self, in_dim=1000, out_dim=500):
+    def __init__(self, in_dim=1000, out_dim=256):
         super(StillVisualInputModule, self).__init__()
 
-        self.fc = nn.Linear(in_dim, out_dim)
+        self.fc = nn.Linear(in_features=in_dim, out_features=out_dim)
         self.activation = nn.ReLU()
 
-    def forward(self, image_feat):
+    def forward(self, feat):
         """
         Args:
-            image_feat: [Tensor] (batch_size, in_dim)
+            feat: [Tensor] (batch_size, in_dim)
         return:
-            image_feat representation [Tensor] (batch_size, out_dim)
+            output representation [Tensor] (batch_size, out_dim)
         """
-        image_feat = self.fc(image_feat)
-        image_feat = self.activation(image_feat)
 
-        return image_feat
+        output = self.activation(self.fc(feat))
+        print(f"StillVisualInputModule output.shape: {output.shape}")
+        return output
 
 
 class MotionVisualInputModule(nn.Module):
-    def __init__(self, in_dim=1000, out_dim=500):
+    def __init__(self, in_frames=16, in_dim=512, out_dim=256):
         super(MotionVisualInputModule, self).__init__()
 
-        self.temporal = nn.LSTM(
-            input_size=in_dim,
-            hidden_size=out_dim,
-            batch_first=True,
-            bidirectional=False,
-        )
+        self.temporal = nn.Conv1d(
+            in_channels=in_frames, out_channels=1, kernel_size=1
+        )  # (batch_size, 1, in_dim)
+        self.fc = nn.Linear(
+            in_features=in_dim, out_features=out_dim
+        )  # (batch_size, 1, out_dim)
 
-    def forward(self, motion_feat):
+    def forward(self, feat):
+        """
+        Args:
+            feat: [Tensor] (batch_size, in_frames, in_dim)
+        return:
+            output representation [Tensor] (batch_size, out_dim)
+        """
 
-        output, (h_n, c_n) = self.temporal(motion_feat)
-        print(f"MotionVisualInputModule temporal LSTM output.shape: {output.shape}")
-        return output[-1]
+        output = self.fc(self.temporal(feat)).squeeze()
+        print(f"MotionVisualInputModule output.shape: {output.shape}")
+        return output
 
 
 class AudioInputModule(nn.Module):
@@ -120,34 +129,40 @@ class AudioInputModule(nn.Module):
 
 
 class FeatureAggregation(nn.Module):
-    def __init__(self, module_dim=512):
+    def __init__(self, in_dim, out_dim):
         super(FeatureAggregation, self).__init__()
-        self.module_dim = module_dim
 
-        self.t_proj = nn.Linear(module_dim, module_dim, bias=False)
-        self.v_proj = nn.Linear(module_dim, module_dim, bias=False)
+        self.t_proj = nn.Linear(in_dim, in_dim, bias=False)
+        self.v_proj = nn.Linear(in_dim, in_dim, bias=False)
+        self.m_proj = nn.Linear(in_dim, in_dim, bias=False)
 
-        self.cat = nn.Linear(2 * module_dim, module_dim)
-        self.attn = nn.Linear(module_dim, 1)
+        self.cat = nn.Linear(3 * in_dim, out_dim)
+
+        self.attn = nn.Linear(out_dim, 1)
 
         self.activation = nn.ELU()
         self.dropout = nn.Dropout(0.15)
 
-    def forward(self, textual_rep, visual_feat):
-        visual_feat = self.dropout(visual_feat)
-        t_proj = self.t_proj(textual_rep)
+    def forward(self, textual_feat, visual_feat, motion_feat):
+        t_proj = self.t_proj(textual_feat)
         v_proj = self.v_proj(visual_feat)
+        m_proj = self.m_proj(motion_feat)
 
-        v_q_cat = torch.cat((v_proj, t_proj.unsqueeze(1) * v_proj), dim=-1)
-        v_q_cat = self.cat(v_q_cat)
-        v_q_cat = self.activation(v_q_cat)
+        cat_feat = torch.cat([t_proj, v_proj, m_proj], dim=1)
 
-        attn = self.attn(v_q_cat)  # (bz, k, 1)
-        attn = F.softmax(attn, dim=1)  # (bz, k, 1)
+        cat_feat = self.cat(cat_feat)
+        cat_feat = self.dropout(cat_feat)
 
-        v_distill = (attn * visual_feat).sum(1)
+        output = self.activation(cat_feat)
 
-        return v_distill
+        # attn = self.attn(cat_feat)  # (bz, k, 1)
+        # attn = F.softmax(attn, dim=1)  # (bz, k, 1)
+
+        # output = (attn * cat_feat).sum(1)
+
+        print(f"FeatureAggregation output.shape: {output.shape}")
+
+        return output
 
 
 class CLSOutputModule(nn.Module):
@@ -158,7 +173,7 @@ class CLSOutputModule(nn.Module):
 
         self.classifier = nn.Sequential(
             nn.Dropout(0.15),
-            nn.Linear(module_dim * 4, module_dim),
+            nn.Linear(module_dim, module_dim),
             nn.ELU(),
             nn.BatchNorm1d(module_dim),
             nn.Dropout(0.15),
@@ -167,20 +182,22 @@ class CLSOutputModule(nn.Module):
 
     def forward(self, aggregated_feat):
         pred = self.classifier(aggregated_feat)
+        return pred
 
 
 class MMNFT(nn.Module):
     def __init__(
         self,
         vocab_size,
-        glove_matrix,
         wordvec_dim,
-        module_dim,
-        word_dim,
+        glove_matrix,
+        text_rnn_dim: int,
         visual_in_dim: int,
         motion_in_frames: int,
         motion_in_dim: int,
-        vocab,
+        agg_in_dim: int,
+        agg_out_dim: int,
+        module_dim=256,
         task: str = "classification",
     ):
         super(MMNFT, self).__init__()
@@ -189,37 +206,40 @@ class MMNFT(nn.Module):
             vocab_size=vocab_size,
             glove_matrix=glove_matrix,
             wordvec_dim=wordvec_dim,
+            rnn_dim=text_rnn_dim,
+            out_dim=agg_in_dim,
         )
-        self.still_visual_input_module = StillVisualInputModule()
-        self.motion_visual_input_module = MotionVisualInputModule()
-        self.feature_aggregation = FeatureAggregation(module_dim)
+        self.still_visual_input_module = StillVisualInputModule(
+            in_dim=visual_in_dim,
+            out_dim=agg_in_dim,
+        )
+        self.motion_visual_input_module = MotionVisualInputModule(
+            in_frames=motion_in_frames,
+            in_dim=motion_in_dim,
+            out_dim=agg_out_dim,
+        )
+        self.feature_aggregation = FeatureAggregation(
+            in_dim=agg_in_dim,
+            out_dim=agg_out_dim,
+        )
 
         if task == "classification":
-            self.output_module = CLSOutputModule(module_dim)
+            self.output_module = CLSOutputModule(module_dim=agg_out_dim)
         else:
             raise NotImplementedError()
 
-        self.output_module = CLSOutputModule(module_dim=module_dim)
+    def forward(self, text_encoded, text_length, image_feat, video_feat):
+        # Feature Embedding
+        textual_feat = self.textual_input_module(
+            text_encoded, text_length
+        )  # (B, agg_in_dim)
+        image_feat = self.still_visual_input_module(image_feat)  # (B, agg_in_dim)
+        video_feat = self.motion_visual_input_module(video_feat)  # (B, agg_in_dim)
 
-    def forward(
-        self,
-        video_appearance_feat,
-        video_motion_feat,
-        question,
-        question_len,
-    ):
+        # Multi-modal Fusion
+        agg_feat = self.feature_aggregation(textual_feat, image_feat, video_feat)
 
-        batch_size = question.size(0)
-
-        question_embedding = self.linguistic_input_unit(question, question_len)
-        visual_embedding = self.visual_input_unit(
-            video_appearance_feat, video_motion_feat, question_embedding
-        )
-
-        visual_embedding = self.feature_aggregation(
-            question_embedding, visual_embedding
-        )
-
-        out = self.output_unit(question_embedding, visual_embedding)
+        # Classification / Regression Head
+        out = self.output_module(agg_feat)
 
         return out

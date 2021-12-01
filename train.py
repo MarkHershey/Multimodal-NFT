@@ -1,6 +1,7 @@
 import argparse
 import logging
 import os
+import pickle
 import random
 import sys
 import time
@@ -70,11 +71,30 @@ def train(cfg: ExpConfigs):
         os.environ["CUDA_VISIBLE_DEVICES"] = cfg.gpu_ids
 
     ###########################################################################
+    pkl_obj = pickle.load(open(cfg.text_pickle, "rb"))
+
+    embedding_matrix = pkl_obj.get("embedding_matrix")
+
+    if embedding_matrix is not None:
+        embedding_matrix = torch.from_numpy(embedding_matrix).to(device)
+        vocab_size, wordvec_dim = embedding_matrix.size()
+    else:
+        raise ValueError("embedding_matrix is None")
+
     logger.info("Create model.........")
 
-    model_kwargs = {
-        "...": ...,
-    }
+    # TODO
+    model_kwargs = dict(
+        vocab_size=vocab_size,
+        wordvec_dim=wordvec_dim,
+        glove_matrix=embedding_matrix,
+        text_rnn_dim=cfg.text_rnn_dim,
+        visual_in_dim=cfg.visual_in_dim,
+        motion_in_frames=cfg.motion_in_frames,
+        motion_in_dim=cfg.motion_in_dim,
+        agg_in_dim=cfg.agg_in_dim,
+        agg_out_dim=cfg.agg_out_dim,
+    )
 
     model = MMNFT(**model_kwargs).to(device)
 
@@ -106,7 +126,7 @@ def train(cfg: ExpConfigs):
 
     # get optimizer
     optimizer_func = getattr(optim, cfg.optimizer)
-    optimizer = optimizer_func(model.parameters(), lr=cfg.learning_rate).to(device)
+    optimizer = optimizer_func(model.parameters(), lr=cfg.learning_rate)
 
     start_epoch = 0
     best_val = 0 if cfg.task == "classification" else 100.0
@@ -143,11 +163,20 @@ def train(cfg: ExpConfigs):
         train_accuracy = 0
         for i, batch in enumerate(iter(train_loader)):
             progress = epoch + i / len(train_loader)
-            _, _, answers, ratio, *batch_input = [todevice(x, device) for x in batch]
-            answers = answers.cuda().squeeze()
+
+            text_encoded, text_length, image_feat, video_feat, label = batch
+            text_encoded = text_encoded.to(device)
+            text_length = text_length.cpu()
+            image_feat = image_feat.to(device)
+            video_feat = video_feat.to(device)
+            label = label.to(device)
+
+            answers = label.cuda().squeeze()
             batch_size = answers.size(0)
+
             optimizer.zero_grad()
-            logits = model(*batch_input)
+
+            logits = model(text_encoded, text_length, image_feat, video_feat)
             # logger.debug(f">>> logits size: {logits.size()}")
 
             if cfg.task == "classification":
@@ -273,6 +302,14 @@ def step_decay(cfg, optimizer):
         param_group["lr"] = cfg.train.lr
 
     return optimizer
+
+
+def todevice(tensor, device):
+    if isinstance(tensor, list) or isinstance(tensor, tuple):
+        assert isinstance(tensor[0], torch.Tensor)
+        return [todevice(t, device) for t in tensor]
+    elif isinstance(tensor, torch.Tensor):
+        return tensor.to(device)
 
 
 def batch_accuracy(predicted, true):

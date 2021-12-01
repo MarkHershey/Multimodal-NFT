@@ -180,7 +180,7 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--json_dir", type=str, required=True)
     parser.add_argument("--media_dir", type=str, required=True)
-    parser.add_argument("--h5_filepath", type=str, default="image_feats.h5")
+    parser.add_argument("--h5_filepath", type=str, default="data/image_feats.h5")
     parser.add_argument("--features_dim", type=int, default=1000)
     parser.add_argument("--device", type=str, default="0")
     args = parser.parse_args()

@@ -28,7 +28,7 @@ class NFTDataset(Dataset):
         self.texts_ids = texts_ids
         self.texts_encoded = torch.LongTensor(texts_encoded)
         self.texts_lengths = torch.LongTensor(texts_lengths)
-        self.label_ids = labels.keys()
+        self.label_ids = list(labels.keys())
         self.labels = labels
         self.image_feat_h5 = image_feat_h5
         self.image_id_to_h5_idx = image_id_to_h5_idx
@@ -168,7 +168,7 @@ class NFTDataLoader(DataLoader):
 
 if __name__ == "__main__":
     print("Test DataLoader...")
-    json_dir = "/home/markhuang/Data/NFT_Dataset/json"
+    json_dir = "/home/mark/Data/NFT_Dataset/json"
     all_json_names = []
     for i in os.listdir(json_dir):
         if i.endswith(".json"):
@@ -178,9 +178,9 @@ if __name__ == "__main__":
         "batch_size": 16,
         "json_dir": json_dir,
         "json_names": all_json_names,
-        "text_pickle": "/home/markhuang/Data/NFT_Dataset/features/encoded_text.pickle",
-        "image_feat_h5": "/home/markhuang/Data/NFT_Dataset/features/image_feats.h5",
-        "video_feat_h5": "/home/markhuang/Data/NFT_Dataset/features/video_feats.h5",
+        "text_pickle": "data/encoded_text.pickle",
+        "image_feat_h5": "data/image_feats.h5",
+        "video_feat_h5": "data/video_feats.h5",
         "num_workers": 0,
         "shuffle": True,
     }
@@ -188,3 +188,12 @@ if __name__ == "__main__":
 
     print(f"dataloader length: {len(train_loader)} (batches)")
     print(f"dataset length: {len(train_loader.dataset)} (samples)")
+
+    for (text_encoded, text_length, image_feat, video_feat, label) in train_loader:
+        print()
+        print(f"text_encoded: {text_encoded.shape}")
+        print(f"text_length: {text_length.shape}")
+        print("image_feat:", image_feat.shape)
+        print("video_feat:", video_feat.shape)
+        print("label:", label.shape)
+        break

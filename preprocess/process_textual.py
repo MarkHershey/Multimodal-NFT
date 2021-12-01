@@ -136,7 +136,7 @@ def main():
     parser.add_argument("--json_dir", type=str, required=True)
     parser.add_argument("--embedding_dim", type=int, default=300)
     parser.add_argument("--max_vocab_size", type=int, default=20000)
-    parser.add_argument("--save_path", type=str, default="encoded_text.pickle")
+    parser.add_argument("--save_path", type=str, default="data/encoded_text.pickle")
     parser.add_argument("--train", type=bool, default=True)
     args = parser.parse_args()
 

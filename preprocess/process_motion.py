@@ -271,7 +271,7 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--json_dir", type=str, required=True)
     parser.add_argument("--media_dir", type=str, required=True)
-    parser.add_argument("--h5_filepath", type=str, default="video_feats.h5")
+    parser.add_argument("--h5_filepath", type=str, default="data/video_feats.h5")
     parser.add_argument("--frame_num", type=int, default=16)
     parser.add_argument("--features_dim", type=int, default=512)
     parser.add_argument("--device", type=str, default="0")
