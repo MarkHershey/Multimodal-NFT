@@ -94,6 +94,7 @@ def train(cfg: ExpConfigs):
         motion_in_dim=cfg.motion_in_dim,
         agg_in_dim=cfg.agg_in_dim,
         agg_out_dim=cfg.agg_out_dim,
+        num_classes=cfg.num_classes,
     )
 
     model = MMNFT(**model_kwargs).to(device)
@@ -295,11 +296,11 @@ def train(cfg: ExpConfigs):
 
 def step_decay(cfg, optimizer):
     # compute the new learning rate based on decay rate
-    cfg.train.lr *= 0.5
-    logging.info("Reduced learning rate to {}".format(cfg.train.lr))
+    cfg.learning_rate *= 0.5
+    logging.info("Reduced learning rate to {}".format(cfg.learning_rate))
     sys.stdout.flush()
     for param_group in optimizer.param_groups:
-        param_group["lr"] = cfg.train.lr
+        param_group["lr"] = cfg.learning_rate
 
     return optimizer
 

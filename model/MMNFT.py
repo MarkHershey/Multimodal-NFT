@@ -66,7 +66,7 @@ class TextualInputModule(nn.Module):
         h_n = self.text_dropout(h_n)
         output = self.fc(h_n)
 
-        print(f"TextualInputModule output.shape: {output.shape}")
+        # print(f"TextualInputModule output.shape: {output.shape}")
 
         return output
 
@@ -87,7 +87,7 @@ class StillVisualInputModule(nn.Module):
         """
 
         output = self.activation(self.fc(feat))
-        print(f"StillVisualInputModule output.shape: {output.shape}")
+        # print(f"StillVisualInputModule output.shape: {output.shape}")
         return output
 
 
@@ -111,7 +111,7 @@ class MotionVisualInputModule(nn.Module):
         """
 
         output = self.fc(self.temporal(feat)).squeeze()
-        print(f"MotionVisualInputModule output.shape: {output.shape}")
+        # print(f"MotionVisualInputModule output.shape: {output.shape}")
         return output
 
 
@@ -160,7 +160,7 @@ class FeatureAggregation(nn.Module):
 
         # output = (attn * cat_feat).sum(1)
 
-        print(f"FeatureAggregation output.shape: {output.shape}")
+        # print(f"FeatureAggregation output.shape: {output.shape}")
 
         return output
 
@@ -168,7 +168,7 @@ class FeatureAggregation(nn.Module):
 class CLSOutputModule(nn.Module):
     """Classification Output Module"""
 
-    def __init__(self, module_dim=512):
+    def __init__(self, module_dim=512, num_classes=10):
         super(CLSOutputModule, self).__init__()
 
         self.classifier = nn.Sequential(
@@ -177,7 +177,7 @@ class CLSOutputModule(nn.Module):
             nn.ELU(),
             nn.BatchNorm1d(module_dim),
             nn.Dropout(0.15),
-            nn.Linear(module_dim, 1),
+            nn.Linear(module_dim, num_classes),
         )
 
     def forward(self, aggregated_feat):
@@ -197,7 +197,7 @@ class MMNFT(nn.Module):
         motion_in_dim: int,
         agg_in_dim: int,
         agg_out_dim: int,
-        module_dim=256,
+        num_classes: int,
         task: str = "classification",
     ):
         super(MMNFT, self).__init__()
@@ -224,7 +224,9 @@ class MMNFT(nn.Module):
         )
 
         if task == "classification":
-            self.output_module = CLSOutputModule(module_dim=agg_out_dim)
+            self.output_module = CLSOutputModule(
+                module_dim=agg_out_dim, num_classes=num_classes
+            )
         else:
             raise NotImplementedError()
 

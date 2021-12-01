@@ -13,7 +13,7 @@ default_configs = dict(
     batch_size=16,
     optimizer="Adam",
     learning_rate=0.0001,
-    max_epochs=1,
+    max_epochs=30,
     save_dir="results/",  # directory to save checkpoints
     # Restore training
     restore_flag=False,  # whether to restore training from checkpoint
@@ -33,6 +33,7 @@ default_configs = dict(
     motion_in_dim=512,  # video feature dimension
     agg_in_dim=256,  # feature aggregation input dimension
     agg_out_dim=256,  # feature aggregation output dimension
+    num_classes=10,  # number of classes for classification task
     # misc
     seed=0,  # seed for random number generator
     gpu_ids="0",  # specify single or multiple GPU id to use
