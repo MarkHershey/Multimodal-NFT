@@ -1,3 +1,4 @@
+import argparse
 import json
 import os
 import pickle
@@ -34,10 +35,15 @@ def decode(
         return delim.join(decoded_tokens)
 
 
-def process_text_and_save(args, train=True):
+def process_text_and_save(
+    embedding_dim=300,
+    max_vocab_size=20000,
+    save_path: str = "encoded_text.pickle",
+    train=True,
+) -> None:
 
-    EMBEDDING_DIM = 300
-    VOCAB_SIZE = 20000
+    EMBEDDING_DIM = embedding_dim
+    VOCAB_SIZE = max_vocab_size
 
     ids: List[int]
     texts: List[str]
@@ -106,6 +112,7 @@ def process_text_and_save(args, train=True):
         embedding_matrix = vec.get_vecs_by_tokens(
             all_tokens
         )  # (num_words, embedding_dim)
+        print(f"embedding_matrix size: {embedding_matrix.shape}")
     else:
         # load from disk later
         embedding_matrix = None
@@ -117,9 +124,26 @@ def process_text_and_save(args, train=True):
         "embedding_matrix": embedding_matrix.numpy(),
     }
 
-    with open("encoded_text.pb", "wb") as f:
+    with open(save_path, "wb") as f:
         pickle.dump(obj, f)
+        print(f"Exported: {save_path}")
+
+
+def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--embedding_dim", type=int, default=300)
+    parser.add_argument("--max_vocab_size", type=int, default=20000)
+    parser.add_argument("--save_path", type=str, default="encoded_text.pickle")
+    parser.add_argument("--train", type=bool, default=True)
+    args = parser.parse_args()
+
+    process_text_and_save(
+        embedding_dim=args.embedding_dim,
+        max_vocab_size=args.max_vocab_size,
+        save_path=args.save_path,
+        train=args.train,
+    )
 
 
 if __name__ == "__main__":
-    process_text_and_save(args=None)
+    main()
