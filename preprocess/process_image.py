@@ -211,7 +211,7 @@ def main():
                 out_dir_path.mkdir(parents=True)
 
             h5_filepath = (
-                out_dir_path / f"image_feats_resnet{num_layers}_{num_layers}.h5"
+                out_dir_path / f"image_feats_resnet{num_layers}_{features_dim}.h5"
             )
             extract_feats_and_generate_h5(model, image_paths, h5_filepath, features_dim)
     else:

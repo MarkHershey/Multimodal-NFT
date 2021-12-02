@@ -184,8 +184,6 @@ class CLSOutputModule(nn.Module):
             nn.BatchNorm1d(module_dim),
             nn.Dropout(0.15),
             nn.Linear(module_dim, num_classes),
-            # nn.Tanh(),
-            # nn.Softmax(dim=1),
         )
 
     def forward(self, aggregated_feat):

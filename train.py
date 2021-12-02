@@ -6,6 +6,7 @@ import random
 import sys
 import time
 from pathlib import Path
+from typing import List
 
 import numpy as np
 import torch
@@ -37,31 +38,37 @@ def train(cfg: ExpConfigs):
     ###########################################################################
     logger.info("Create train_loader and val_loader.........")
     # load training data
-    train_loader_kwargs = {
-        "batch_size": cfg.batch_size,
-        "json_dir": cfg.json_dir,
-        "json_names": train_json_names,
-        "text_pickle": cfg.text_pickle,
-        "image_feat_h5": cfg.image_feat_h5,
-        "video_feat_h5": cfg.video_feat_h5,
-        "num_workers": cfg.num_workers,
-        "shuffle": True,
-    }
+    train_loader_kwargs = dict(
+        batch_size=cfg.batch_size,
+        json_dir=cfg.json_dir,
+        json_names=train_json_names,
+        text_pickle=cfg.text_pickle,
+        image_feat_h5=cfg.image_feat_h5,
+        video_feat_h5=cfg.video_feat_h5,
+        visual_in_dim=cfg.visual_in_dim,
+        motion_in_frames=cfg.motion_in_frames,
+        motion_in_dim=cfg.motion_in_dim,
+        num_workers=cfg.num_workers,
+        shuffle=True,
+    )
     train_loader = NFTDataLoader(**train_loader_kwargs)
     logger.info(f"Number of train instances: {len(train_loader.dataset)}")
 
     # load validation data
     if cfg.val_flag:
-        val_loader_kwargs = {
-            "batch_size": cfg.batch_size,
-            "json_dir": cfg.json_dir,
-            "json_names": val_json_names,
-            "text_pickle": cfg.text_pickle,
-            "image_feat_h5": cfg.image_feat_h5,
-            "video_feat_h5": cfg.video_feat_h5,
-            "num_workers": cfg.num_workers,
-            "shuffle": True,
-        }
+        val_loader_kwargs = dict(
+            batch_size=cfg.batch_size,
+            json_dir=cfg.json_dir,
+            json_names=val_json_names,
+            text_pickle=cfg.text_pickle,
+            image_feat_h5=cfg.image_feat_h5,
+            video_feat_h5=cfg.video_feat_h5,
+            visual_in_dim=cfg.visual_in_dim,
+            motion_in_frames=cfg.motion_in_frames,
+            motion_in_dim=cfg.motion_in_dim,
+            num_workers=cfg.num_workers,
+            shuffle=True,
+        )
         val_loader = NFTDataLoader(**val_loader_kwargs)
         logger.info(f"Number of val instances: {len(val_loader.dataset)}")
 
@@ -180,11 +187,17 @@ def train(cfg: ExpConfigs):
             if cfg.task == "classification":
                 loss = criterion(pred, answers)
                 loss.backward()
+
+                # NOTE: about detach
+                # https://pytorch.org/docs/stable/generated/torch.Tensor.detach.html
                 total_loss += loss.detach()
                 avg_loss = total_loss / (i + 1)
+
+                # NOTE: about clip_grad_norm_
+                # https://pytorch.org/docs/stable/generated/torch.nn.utils.clip_grad_norm_.html
                 nn.utils.clip_grad_norm_(model.parameters(), max_norm=12)
                 optimizer.step()
-                aggreeings = batch_accuracy(pred, answers)
+                aggreeings: List[bool] = batch_accuracy(pred, answers)
             elif cfg.task == "regression":
                 answers = answers.unsqueeze(-1)
                 loss = criterion(pred, answers.float())
@@ -261,7 +274,7 @@ def train(cfg: ExpConfigs):
 
         sys.stdout.flush()
 
-        logging.info(
+        logger.info(
             "Epoch = %s   avg_loss = %.3f    avg_acc = %.3f"
             % (epoch, avg_loss, train_accuracy)
         )
@@ -276,11 +289,12 @@ def train(cfg: ExpConfigs):
                 # Save best model
                 ckpt_path = os.path.join(cfg.ckpt_dir, "best_model.pt")
                 save_checkpoint(epoch, model, optimizer, model_kwargs_tosave, ckpt_path)
+                logger.info("***Current Best = {:.4f}".format(best_val))
 
                 sys.stdout.write("\n >>>>>> save to %s <<<<<< \n" % (ckpt_path))
                 sys.stdout.flush()
 
-            logging.info("~~~~~~ Valid Accuracy: %.4f ~~~~~~~" % valid_acc)
+            logger.info("~~~~~~ Valid Accuracy: %.4f ~~~~~~~" % valid_acc)
             sys.stdout.write(
                 "~~~~~~ Valid Accuracy: {valid_acc} ~~~~~~~\n".format(
                     valid_acc=colored("{:.4f}".format(valid_acc), "red", attrs=["bold"])
@@ -325,7 +339,7 @@ def evaluate(cfg, model, dataloader, device, write_preds=False):
 def step_decay(cfg, optimizer):
     # compute the new learning rate based on decay rate
     cfg.learning_rate *= 0.5
-    logging.info("Reduced learning rate to {}".format(cfg.learning_rate))
+    logger.info("Reduced learning rate to {}".format(cfg.learning_rate))
     sys.stdout.flush()
     for param_group in optimizer.param_groups:
         param_group["lr"] = cfg.learning_rate
@@ -347,7 +361,7 @@ def save_checkpoint(epoch, model, optimizer, model_kwargs, filename):
         "optimizer": optimizer.state_dict(),
         "model_kwargs": model_kwargs,
     }
-    time.sleep(10)
+    time.sleep(3)
     torch.save(state, filename)
 
 
@@ -358,14 +372,14 @@ def main():
 
     # Load config file
     if args.cfg:
-        cfg = ExpConfigs.load(args.conf)
+        cfg = ExpConfigs.load(args.cfg)
     else:
         cfg = ExpConfigs()
 
     # init logger
     global logger
     logger = get_logger(log_dir=cfg.log_dir, stream_only=cfg.stream_log_only)
-    logger.setLevel(logging.INFO)
+    logger.setLevel(logging.ERROR)
 
     # Set random seed
     torch.manual_seed(cfg.seed)

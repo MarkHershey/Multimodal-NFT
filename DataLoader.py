@@ -24,6 +24,9 @@ class NFTDataset(Dataset):
         image_id_to_h5_idx: Dict[int, int],
         video_feat_h5: Union[str, Path],
         video_id_to_h5_idx: Dict[int, int],
+        visual_in_dim: int,
+        motion_in_frames: int,
+        motion_in_dim: int,
     ):
         self.texts_ids = texts_ids
         self.texts_encoded = torch.LongTensor(texts_encoded)
@@ -34,6 +37,9 @@ class NFTDataset(Dataset):
         self.image_id_to_h5_idx = image_id_to_h5_idx
         self.video_feat_h5 = video_feat_h5
         self.video_id_to_h5_idx = video_id_to_h5_idx
+        self.visual_in_dim = visual_in_dim
+        self.motion_in_frames = motion_in_frames
+        self.motion_in_dim = motion_in_dim
 
     def __len__(self):
         # this is number of samples
@@ -62,14 +68,14 @@ class NFTDataset(Dataset):
             image_idx = self.image_id_to_h5_idx[sample_id]
             image_feat = self.get_image_feat(image_idx)
         else:
-            image_feat = torch.zeros(1000)
+            image_feat = torch.zeros(self.visual_in_dim)
 
         # get video features
         if sample_id in self.video_id_to_h5_idx:
             video_idx = self.video_id_to_h5_idx[sample_id]
             video_feat = self.get_video_feat(video_idx)
         else:
-            video_feat = torch.zeros(16, 512)
+            video_feat = torch.zeros(self.motion_in_frames, self.motion_in_dim)
 
         # get audio features
         # TODO
@@ -104,6 +110,10 @@ class NFTDataLoader(DataLoader):
         self.text_pickle = str(kwargs.pop("text_pickle"))
         self.image_feat_h5 = str(kwargs.pop("image_feat_h5"))
         self.video_feat_h5 = str(kwargs.pop("video_feat_h5"))
+
+        self.visual_in_dim: int = kwargs.pop("visual_in_dim")
+        self.motion_in_frames: int = kwargs.pop("motion_in_frames")
+        self.motion_in_dim: int = kwargs.pop("motion_in_dim")
 
         # get pickle object
         print(f"loading text_pickle from {self.text_pickle}")
@@ -157,6 +167,9 @@ class NFTDataLoader(DataLoader):
             image_id_to_h5_idx=image_id_to_h5_idx,
             video_feat_h5=self.video_feat_h5,
             video_id_to_h5_idx=video_id_to_h5_idx,
+            visual_in_dim=self.visual_in_dim,
+            motion_in_frames=self.motion_in_frames,
+            motion_in_dim=self.motion_in_dim,
         )
         # 3. Pass Dataset to super to complete initialization of DataLoader.
         super().__init__(self.dataset, **kwargs)
