@@ -1,0 +1,19 @@
+{
+    "exp_name": "exp18-64",
+    "batch_size": 64,
+    "optimizer": "Adam",
+    "learning_rate": 0.0001,
+    "max_epochs": 30,
+    "image_feat_h5": "data/image_feats_resnet18_512.h5",
+    "video_feat_h5": "data/video_feats.h5",
+    "text_rnn_dim": 512,
+    "visual_in_dim": 512,
+    "motion_in_frames": 16,
+    "motion_in_dim": 512,
+    "motion_mid_dim": 256,
+    "agg_in_dim": 256,
+    "agg_mid_dim": 256,
+    "agg_out_dim": 256,
+    "use_all_gpus": false,
+    "deterministic": false
+}
