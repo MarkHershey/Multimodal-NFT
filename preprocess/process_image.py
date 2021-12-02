@@ -17,9 +17,10 @@ logger = get_logger(stream_only=True)
 logger.setLevel(logging.INFO)
 
 
-def build_resnet50():
-    cnn = torchvision.models.resnet50(pretrained=True)
-    model = torch.nn.Sequential(*list(cnn.children())[:-1])
+def build_resnet(num_layers: int = 50):
+    assert num_layers in [18, 34, 50, 101, 152]
+    resnet = torchvision.models.resnet.__dict__[f"resnet{num_layers}"](pretrained=True)
+    model = torch.nn.Sequential(*list(resnet.children())[:-1])
     model = model.to(device)
     model.eval()
     return model
@@ -181,25 +182,41 @@ def main():
     parser.add_argument("--json_dir", type=str, required=True)
     parser.add_argument("--media_dir", type=str, required=True)
     parser.add_argument("--h5_filepath", type=str, default="data/image_feats.h5")
-    parser.add_argument("--features_dim", type=int, default=2048)
+    parser.add_argument("--out_dir", type=str, default="data/")
     parser.add_argument("--device", type=str, default="0")
+    parser.add_argument("--all", action="store_true", default=False)
     args = parser.parse_args()
 
     os.environ["CUDA_VISIBLE_DEVICES"] = str(args.device)
     global device
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-    model = build_resnet50()
     image_paths = get_image_paths(
         json_dir=args.json_dir,
         media_dir=args.media_dir,
     )
-    extract_feats_and_generate_h5(
-        model,
-        image_paths,
-        args.h5_filepath,
-        args.features_dim,
-    )
+
+    if args.all:
+        for num_layers, features_dim in [
+            (18, 512),
+            (34, 512),
+            (50, 2048),
+            (101, 2048),
+            (152, 2048),
+        ]:
+            logging.info(f"Extracting features using ResNet-{num_layers}...")
+            model = build_resnet(num_layers=num_layers)
+            out_dir_path = Path(args.out_dir)
+            if not out_dir_path.is_dir():
+                out_dir_path.mkdir(parents=True)
+
+            h5_filepath = (
+                out_dir_path / f"image_feats_resnet{num_layers}_{num_layers}.h5"
+            )
+            extract_feats_and_generate_h5(model, image_paths, h5_filepath, features_dim)
+    else:
+        model = build_resnet(num_layers=50)
+        extract_feats_and_generate_h5(model, image_paths, args.h5_filepath, 2048)
 
 
 if __name__ == "__main__":
