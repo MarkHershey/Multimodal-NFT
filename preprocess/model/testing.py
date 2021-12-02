@@ -13,7 +13,6 @@ import torchvision
 from PIL import Image
 from puts import get_logger
 
-
 for num_layers in [18, 34, 50, 101, 152]:
     image = torch.rand(size=(1, 3, 224, 224))
     resnet = torchvision.models.resnet.__dict__[f"resnet{num_layers}"](pretrained=True)

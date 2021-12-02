@@ -1,15 +1,16 @@
 import json
 import os
+import time
 from pathlib import Path
+from time import strftime
 
 default_configs = dict(
     # General
     exp_name="default",
-    log_dir="logs/default",
     stream_log_only=False,
     mode="train",
     train_ratio=0.8,
-    val_flag=False,  # whether split the training data into validation set
+    val_flag=True,  # whether split the training data into validation set
     batch_size=16,
     optimizer="Adam",
     learning_rate=0.0001,
@@ -31,7 +32,9 @@ default_configs = dict(
     visual_in_dim=1000,  # image feature dimension
     motion_in_frames=16,  # number of frames sampled per video
     motion_in_dim=512,  # video feature dimension
+    motion_mid_dim=256,  # video feature middle representation dimension
     agg_in_dim=256,  # feature aggregation input dimension
+    agg_mid_dim=256,  # feature aggregation middle representation dimension
     agg_out_dim=256,  # feature aggregation output dimension
     num_classes=10,  # number of classes for classification task
     # misc
@@ -44,6 +47,8 @@ default_configs = dict(
 
 
 class ExpConfigs:
+    """ Experiment Configurations"""
+
     def __init__(self, **kwargs):
         self.__dict__.update(default_configs)
         self.__dict__.update(kwargs)
@@ -56,11 +61,22 @@ class ExpConfigs:
         assert self.optimizer in ["Adam", "SGD", "RMSprop"]
         assert isinstance(self.max_epochs, int)
 
-        if not Path(self.save_dir).is_dir():
-            os.makedirs(self.save_dir)
+        exp_dir = Path(self.save_dir) / self.exp_name
+        ckpt_dir = exp_dir / "ckpt"
+        log_dir = exp_dir / "logs"
 
-        if not Path(self.log_dir).is_dir():
-            os.makedirs(self.log_dir)
+        if not ckpt_dir.is_dir():
+            ckpt_dir.mkdir(parents=True)
+        if not log_dir.is_dir():
+            log_dir.mkdir(parents=True)
+
+        self.exp_dir = str(exp_dir)
+        self.ckpt_dir = str(ckpt_dir)
+        self.log_dir = str(log_dir)
+
+        # write configs to experiment directory as a record
+        save_name = exp_dir / f"{time.strftime('%Y%m%d-%H%M%S')}.json"
+        self.save(save_name)
 
     def __repr__(self):
         # return str(self.__dict__)
@@ -74,3 +90,8 @@ class ExpConfigs:
     def load(path):
         with open(path, "r") as f:
             return ExpConfigs(**eval(f.read()))
+
+
+if __name__ == "__main__":
+    config = ExpConfigs()
+    config.save("configs/template.json")

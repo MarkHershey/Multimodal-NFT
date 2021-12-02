@@ -4,6 +4,7 @@
 *.pickle
 **/.vector_cache
 **/logs
+results
 
 # OS generated files
 .DS_Store

@@ -13,6 +13,7 @@ import torch.nn as nn
 import torch.optim as optim
 from puts import get_logger
 from termcolor import colored
+from tqdm import tqdm
 
 from config import ExpConfigs
 from DataLoader import NFTDataLoader
@@ -83,19 +84,21 @@ def train(cfg: ExpConfigs):
 
     logger.info("Create model.........")
 
-    # TODO
     model_kwargs = dict(
-        vocab_size=vocab_size,
-        wordvec_dim=wordvec_dim,
+        # vocab_size=vocab_size,
+        # wordvec_dim=wordvec_dim,
         glove_matrix=embedding_matrix,
         text_rnn_dim=cfg.text_rnn_dim,
         visual_in_dim=cfg.visual_in_dim,
         motion_in_frames=cfg.motion_in_frames,
         motion_in_dim=cfg.motion_in_dim,
+        motion_mid_dim=cfg.motion_mid_dim,
         agg_in_dim=cfg.agg_in_dim,
+        agg_mid_dim=cfg.agg_mid_dim,
         agg_out_dim=cfg.agg_out_dim,
         num_classes=cfg.num_classes,
     )
+    model_kwargs_tosave = {k: v for k, v in model_kwargs.items() if k != "glove_matrix"}
 
     model = MMNFT(**model_kwargs).to(device)
 
@@ -165,38 +168,32 @@ def train(cfg: ExpConfigs):
         for i, batch in enumerate(iter(train_loader)):
             progress = epoch + i / len(train_loader)
 
-            text_encoded, text_length, image_feat, video_feat, label = batch
-            text_encoded = text_encoded.to(device)
-            text_length = text_length.cpu()
-            image_feat = image_feat.to(device)
-            video_feat = video_feat.to(device)
-            label = label.to(device)
-
-            answers = label.cuda().squeeze()
-            batch_size = answers.size(0)
+            text_encoded, text_length, image_feat, video_feat, label = [
+                x.to(device) for x in batch
+            ]
+            answers = label.squeeze()
 
             optimizer.zero_grad()
 
-            logits = model(text_encoded, text_length, image_feat, video_feat)
-            # logger.debug(f">>> logits size: {logits.size()}")
+            pred = model(text_encoded, text_length, image_feat, video_feat)
 
             if cfg.task == "classification":
-                loss = criterion(logits, answers)
+                loss = criterion(pred, answers)
                 loss.backward()
                 total_loss += loss.detach()
                 avg_loss = total_loss / (i + 1)
                 nn.utils.clip_grad_norm_(model.parameters(), max_norm=12)
                 optimizer.step()
-                aggreeings = batch_accuracy(logits, answers)
+                aggreeings = batch_accuracy(pred, answers)
             elif cfg.task == "regression":
                 answers = answers.unsqueeze(-1)
-                loss = criterion(logits, answers.float())
+                loss = criterion(pred, answers.float())
                 loss.backward()
                 total_loss += loss.detach()
                 avg_loss = total_loss / (i + 1)
                 nn.utils.clip_grad_norm_(model.parameters(), max_norm=12)
                 optimizer.step()
-                preds = (logits + 0.5).long().clamp(min=1, max=10)
+                preds = (pred + 0.5).long().clamp(min=1, max=10)
                 batch_mse = (preds - answers) ** 2
 
             if cfg.task == "classification":
@@ -269,29 +266,60 @@ def train(cfg: ExpConfigs):
             % (epoch, avg_loss, train_accuracy)
         )
 
-        # if cfg.val_flag:
-        #     output_dir = os.path.join(cfg.dataset.save_dir, 'preds')
-        #     if not os.path.exists(output_dir):
-        #         os.makedirs(output_dir)
-        #     else:
-        #         assert os.path.isdir(output_dir)
-        #     valid_acc = validate(cfg, model, val_loader, device, write_preds=False)
-        #     if (valid_acc > best_val and cfg.dataset.question_type != 'count') or (valid_acc < best_val and cfg.dataset.question_type == 'count'):
-        #         best_val = valid_acc
-        #         # Save best model
-        #         ckpt_dir = os.path.join(cfg.dataset.save_dir, 'ckpt')
-        #         if not os.path.exists(ckpt_dir):
-        #             os.makedirs(ckpt_dir)
-        #         else:
-        #             assert os.path.isdir(ckpt_dir)
-        #         save_checkpoint(epoch, model, optimizer, model_kwargs_tosave, os.path.join(ckpt_dir, 'model.pt'))
-        #         sys.stdout.write('\n >>>>>> save to %s <<<<<< \n' % (ckpt_dir))
-        #         sys.stdout.flush()
+        if cfg.val_flag:
+            valid_acc = evaluate(cfg, model, val_loader, device, write_preds=False)
 
-        #     logging.info('~~~~~~ Valid Accuracy: %.4f ~~~~~~~' % valid_acc)
-        #     sys.stdout.write('~~~~~~ Valid Accuracy: {valid_acc} ~~~~~~~\n'.format(
-        #         valid_acc=colored("{:.4f}".format(valid_acc), "red", attrs=['bold'])))
-        #     sys.stdout.flush()
+            if (valid_acc > best_val and cfg.task == "classification") or (
+                valid_acc < best_val and cfg.task == "regression"
+            ):
+                best_val = valid_acc
+                # Save best model
+                ckpt_path = os.path.join(cfg.ckpt_dir, "best_model.pt")
+                save_checkpoint(epoch, model, optimizer, model_kwargs_tosave, ckpt_path)
+
+                sys.stdout.write("\n >>>>>> save to %s <<<<<< \n" % (ckpt_path))
+                sys.stdout.flush()
+
+            logging.info("~~~~~~ Valid Accuracy: %.4f ~~~~~~~" % valid_acc)
+            sys.stdout.write(
+                "~~~~~~ Valid Accuracy: {valid_acc} ~~~~~~~\n".format(
+                    valid_acc=colored("{:.4f}".format(valid_acc), "red", attrs=["bold"])
+                )
+            )
+            sys.stdout.flush()
+
+
+def evaluate(cfg, model, dataloader, device, write_preds=False):
+    model.eval()
+    print("validating...")
+    total_acc, count = 0.0, 0
+    all_preds = []
+    gts = []
+    v_ids = []
+    q_ids = []
+    with torch.no_grad():
+        for batch in tqdm(dataloader, total=len(dataloader)):
+            text_encoded, text_length, image_feat, video_feat, label = [
+                x.to(device) for x in batch
+            ]
+
+            answers = label if (cfg.batch_size == 1) else label.squeeze()
+
+            logits = model(text_encoded, text_length, image_feat, video_feat).to(device)
+
+            preds = logits.detach().argmax(1)
+            agreeings = preds == answers
+
+            if write_preds:
+                ...
+
+            total_acc += agreeings.float().sum().item()
+            count += answers.size(0)
+        acc = total_acc / count
+    if not write_preds:
+        return acc
+    else:
+        return acc, all_preds, gts, v_ids, q_ids
 
 
 def step_decay(cfg, optimizer):
@@ -303,14 +331,6 @@ def step_decay(cfg, optimizer):
         param_group["lr"] = cfg.learning_rate
 
     return optimizer
-
-
-def todevice(tensor, device):
-    if isinstance(tensor, list) or isinstance(tensor, tuple):
-        assert isinstance(tensor[0], torch.Tensor)
-        return [todevice(t, device) for t in tensor]
-    elif isinstance(tensor, torch.Tensor):
-        return tensor.to(device)
 
 
 def batch_accuracy(predicted, true):
