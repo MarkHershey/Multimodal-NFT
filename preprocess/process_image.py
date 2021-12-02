@@ -19,8 +19,8 @@ logger.setLevel(logging.INFO)
 
 def build_resnet50():
     cnn = torchvision.models.resnet50(pretrained=True)
-    # model = torch.nn.Sequential(*list(cnn.children())[:-1])
-    model = cnn.to(device)
+    model = torch.nn.Sequential(*list(cnn.children())[:-1])
+    model = model.to(device)
     model.eval()
     return model
 
@@ -98,7 +98,7 @@ def extract_feats_and_generate_h5(
     model,
     image_paths: List[Tuple[str, int]],
     h5_filepath: str = "feats.h5",
-    features_dim: int = 1000,  # 1000 for resnet50
+    features_dim: int = 2048,  # 2048 for resnet50
 ) -> None:
     """
     Args:
@@ -138,8 +138,8 @@ def extract_feats_and_generate_h5(
                 # read an image
                 image = read_image_to_tensor(image_path)  # (1, 3, W, H)
                 # extract features
-                feats = model(image)  # (1, 1000)
-                feats = feats.squeeze()  # (1000, )
+                feats = model(image)  # (1, 2048, 1, 1) for resnet50
+                feats = feats.squeeze()  # (2048, )
                 feats = feats.data.cpu().clone().numpy()
             except Exception as e:
                 feats = np.zeros(shape=(features_dim,))
@@ -181,7 +181,7 @@ def main():
     parser.add_argument("--json_dir", type=str, required=True)
     parser.add_argument("--media_dir", type=str, required=True)
     parser.add_argument("--h5_filepath", type=str, default="data/image_feats.h5")
-    parser.add_argument("--features_dim", type=int, default=1000)
+    parser.add_argument("--features_dim", type=int, default=2048)
     parser.add_argument("--device", type=str, default="0")
     args = parser.parse_args()
 
