@@ -71,14 +71,23 @@ def trim_or_pad_time(data: torch.Tensor, target_time: int) -> torch.Tensor:
         return data
 
 
-def get_MFCC(waveform: torch.Tensor, sample_rate: int) -> torch.Tensor:
+def get_MFCC(
+    waveform: torch.Tensor, sample_rate: int, n_mfcc: int = 256
+) -> torch.Tensor:
     """
     Computes the MFCCs of a waveform.
 
-        :param waveform: The waveform to compute the MFCCs of. (B, time)
-        :param sample_rate: The sample rate of the waveform.
+    Args:
+        waveform: Tensor (B, T)
+            The waveform to compute the MFCCs of.
+        sample_rate: int
+            The sample rate of the waveform.
+        n_mfcc: int
+            The Number of mfc coefficients to retain
 
-        :return: The MFCCs of the waveform. (B, n_mfcc, time')
+    Returns:
+        Tensor (B, n_mfcc, T') where T' = ceil(T / hop_length)
+            The MFCCs of the waveform.
     """
 
     n_fft = 2048
@@ -136,35 +145,46 @@ def get_audio_paths(
 
 def read_audio_to_tensor(
     audio_path: str,
+    target_time: int,
+    n_mfcc: int = 256,
     resample_rate: int = None,
     dtype: torch.dtype = torch.float32,
     device: torch.device = torch.device("cpu"),
     output_numpy: bool = False,
 ) -> Union[torch.Tensor, np.ndarray]:
     """
-    Reads an audio file to a tensor.
+    Reads an audio file, extracts MFCC feature and returns a tensor.
 
-    :param audio_path: The path to the audio file.
-    :param resample_rate: The rate to resample the audio to.
-    :param dtype: The dtype of the tensor.
-    :param device: The device to store the tensor on.
+    Args:
+        audio_path: Path to the audio file.
+        target_time: The target time length of the audio.
+        n_mfcc: The number of MFCCs to retain.
+        resample_rate: The resample rate to resample the audio to.
+        dtype: The dtype of the tensor. Defaults to float32.
+        device: The device to put the tensor on. Defaults to cpu.
+        output_numpy: Whether to return the tensor as a numpy array.
 
-    :return: The MFCC feature of the audio file in either a torch.Tensor or a numpy array.
+    Returns:
+        A tensor of shape (B, n_mfcc, target_time)
     """
     waveform, sample_rate = get_waveform(
         filepath=audio_path,
         resample_rate=resample_rate,
     )
-    mfcc = get_MFCC(waveform=waveform, sample_rate=sample_rate)
-    mfcc = mfcc.to(dtype=dtype, device=device)
+    mfcc = get_MFCC(waveform=waveform, sample_rate=sample_rate, n_mfcc=n_mfcc)
+    mfcc = trim_or_pad_time(mfcc, target_time=target_time)
 
-    return mfcc.numpy() if output_numpy else mfcc
+    if output_numpy:
+        return mfcc.cpu().detach().numpy()
+    else:
+        return mfcc.to(device=device, dtype=dtype)
 
 
 def extract_feats_and_generate_h5(
     audio_paths: List[Tuple[str, int]],
     resample_rate: int = 8000,
     h5_filepath: str = "feats.h5",
+    n_mfcc: int = 256,
     features_dim: int = 3600,
 ) -> None:
     """
@@ -189,7 +209,7 @@ def extract_feats_and_generate_h5(
     with h5py.File(h5_filepath, "w") as fd:
         feature_dataset = fd.create_dataset(
             name="audio_features",
-            shape=(dataset_size, features_dim),
+            shape=(dataset_size, n_mfcc, features_dim),
             dtype=np.float32,
         )
         feature_ids_dataset = fd.create_dataset(
@@ -201,7 +221,8 @@ def extract_feats_and_generate_h5(
         for i, (audio_path, audio_id) in enumerate(audio_paths):
             try:
                 feats = read_audio_to_tensor(
-                    audio_path,
+                    audio_path=audio_path,
+                    target_time=features_dim,
                     resample_rate=resample_rate,
                     output_numpy=True,
                 )
@@ -231,7 +252,9 @@ def extract_feats_and_generate_h5(
     return
 
 
-def get_avg_mfcc_time_length(audio_paths, resample_rate: int):
+def check_mfcc_time_length(
+    audio_paths: List[Tuple[str, int]], resample_rate: int
+) -> int:
     hop_length = 512
     all_mfcc_lens = []
 
@@ -288,7 +311,7 @@ def main():
     )
 
     if args.features_dim is None:
-        get_avg_mfcc_time_length(audio_paths, args.resample_rate)
+        check_mfcc_time_length(audio_paths, args.resample_rate)
         features_dim = None
         while features_dim is None:
             try:
