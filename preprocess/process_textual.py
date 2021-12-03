@@ -8,9 +8,9 @@ from typing import Callable, Dict, List, Tuple
 
 import numpy as np
 import torchtext as text
+from text_utils import load_text_data
 from torchtext.data.utils import get_tokenizer
 from torchtext.vocab import vocab as Vocab
-from utils import load_text_data
 
 
 def encode(tokens: List[str], token_to_idx) -> List[int]:

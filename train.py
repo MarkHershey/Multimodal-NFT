@@ -280,7 +280,7 @@ def train(cfg: ExpConfigs):
         )
 
         if cfg.val_flag:
-            valid_acc = evaluate(cfg, model, val_loader, device, write_preds=False)
+            valid_acc = evaluate(cfg, model, val_loader, device)
 
             if (valid_acc > best_val and cfg.task == "classification") or (
                 valid_acc < best_val and cfg.task == "regression"
@@ -303,14 +303,13 @@ def train(cfg: ExpConfigs):
             sys.stdout.flush()
 
 
-def evaluate(cfg, model, dataloader, device, write_preds=False):
+def evaluate(cfg, model, dataloader, device, return_preds=False):
     model.eval()
     print("validating...")
     total_acc, count = 0.0, 0
+    all_labels = []
     all_preds = []
-    gts = []
-    v_ids = []
-    q_ids = []
+
     with torch.no_grad():
         for batch in tqdm(dataloader, total=len(dataloader)):
             text_encoded, text_length, image_feat, video_feat, label = [
@@ -324,16 +323,21 @@ def evaluate(cfg, model, dataloader, device, write_preds=False):
             preds = logits.detach().argmax(1)
             agreeings = preds == answers
 
-            if write_preds:
-                ...
+            if return_preds:
+                labels_list = list(answers.cpu().numpy())
+                all_labels.extend(labels_list)
+
+                preds_list = list(preds.cpu().numpy())
+                all_preds.extend(preds_list)
 
             total_acc += agreeings.float().sum().item()
             count += answers.size(0)
-        acc = total_acc / count
-    if not write_preds:
-        return acc
+        accuracy = total_acc / count
+
+    if not return_preds:
+        return accuracy
     else:
-        return acc, all_preds, gts, v_ids, q_ids
+        return (accuracy, all_labels, all_preds)
 
 
 def step_decay(cfg, optimizer):

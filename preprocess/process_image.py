@@ -104,13 +104,13 @@ def extract_feats_and_generate_h5(
     """
     Args:
         model: loaded pretrained model for feature extraction
-        video_paths: list of video ids
-        frame_num: expected numbers of frames per video
+        image_paths: list of image paths and ids
         h5_filepath: path of output file to be written
+        features_dim: expected dimension of the feature vector
     Returns:
         None
     Side effect:
-        creating a h5 file containing visual features of given list of videos.
+        creating a h5 file containing visual features of given list of images.
     """
 
     dataset_size = len(image_paths)

@@ -5,6 +5,7 @@ termcolor
 beautifulsoup4
 scikit-image
 torchtext
+librosa
 spacy
 sk-video==1.1.10
 puts==0.0.7
