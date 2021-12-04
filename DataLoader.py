@@ -218,7 +218,7 @@ class NFTDataLoader(DataLoader):
 
 
 if __name__ == "__main__":
-    print("Test DataLoader...")
+    print("Test DataLoader...\n")
     json_dir = "/home/mark/Data/NFT_Dataset/json"
     all_json_names = []
     for i in os.listdir(json_dir):
@@ -230,21 +230,37 @@ if __name__ == "__main__":
         "json_dir": json_dir,
         "json_names": all_json_names,
         "text_pickle": "data/encoded_text.pickle",
-        "image_feat_h5": "data/image_feats.h5",
+        "image_feat_h5": "data/image_feats_resnet34_512.h5",
         "video_feat_h5": "data/video_feats.h5",
+        "audio_feat_h5": "data/audio_feats.h5",
+        "visual_in_dim": 512,
+        "motion_in_frames": 16,
+        "motion_in_dim": 512,
+        "audio_mfcc_dim": 256,
+        "audio_time_dim": 3600,
+        "text_only": False,
         "num_workers": 0,
         "shuffle": True,
     }
     train_loader = NFTDataLoader(**train_loader_kwargs)
 
-    print(f"dataloader length: {len(train_loader)} (batches)")
+    print(f"\ndataloader length: {len(train_loader)} (batches)")
     print(f"dataset length: {len(train_loader.dataset)} (samples)")
 
-    for (text_encoded, text_length, image_feat, video_feat, label) in train_loader:
+    for (
+        ids,
+        text_encoded,
+        text_lengths,
+        image_feat,
+        video_feat,
+        audio_feat,
+        label,
+    ) in train_loader:
         print()
         print(f"text_encoded: {text_encoded.shape}")
-        print(f"text_length: {text_length.shape}")
+        print(f"text_length: {text_lengths.shape}")
         print("image_feat:", image_feat.shape)
         print("video_feat:", video_feat.shape)
+        print("audio_feat:", audio_feat.shape)
         print("label:", label.shape)
         break
