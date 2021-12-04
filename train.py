@@ -445,6 +445,10 @@ def main():
     logger = get_logger(log_dir=cfg.log_dir, stream_only=cfg.stream_log_only)
     logger.setLevel("INFO")
 
+    # Set visible GPU
+    if not cfg.use_all_gpus:
+        os.environ["CUDA_VISIBLE_DEVICES"] = cfg.gpu_ids
+
     # Set random seed
     torch.manual_seed(cfg.seed)
     np.random.seed(cfg.seed)
