@@ -1,10 +1,11 @@
 import argparse
-import logging
+import json
 import os
 import pickle
 import random
 import sys
 import time
+from datetime import datetime
 from pathlib import Path
 from typing import List
 
@@ -12,6 +13,7 @@ import numpy as np
 import torch
 import torch.nn as nn
 import torch.optim as optim
+from dateutil import parser
 from puts import get_logger
 from termcolor import colored
 from tqdm import tqdm
@@ -21,13 +23,31 @@ from DataLoader import NFTDataLoader
 from model.MMNFT import MMNFT
 
 
+def check_label_time(json_file) -> bool:
+    filter_date = datetime(2020, 1, 1, 0, 0, 0)
+
+    with open(json_file) as f:
+        data = json.load(f)
+        transaction_time = data.get("transaction_time")
+        if transaction_time is not None:
+            transaction_time: datetime = parser.parse(transaction_time)
+            if transaction_time > filter_date:
+                return True
+
+    return False
+
+
 def train(cfg: ExpConfigs):
 
     # read json_dir
     all_json_names = []
     for i in os.listdir(cfg.json_dir):
         if i.endswith(".json"):
-            all_json_names.append(i)
+            if cfg.filter_date:
+                if check_label_time(os.path.join(cfg.json_dir, i)):
+                    all_json_names.append(i)
+            else:
+                all_json_names.append(i)
 
     # split train/val/test
     random.shuffle(all_json_names)
@@ -52,6 +72,7 @@ def train(cfg: ExpConfigs):
         audio_mfcc_dim=cfg.audio_mfcc_dim,
         audio_time_dim=cfg.audio_time_dim,
         num_workers=cfg.num_workers,
+        text_only=cfg.text_only,
         shuffle=True,
     )
     train_loader = NFTDataLoader(**train_loader_kwargs)
@@ -73,6 +94,7 @@ def train(cfg: ExpConfigs):
             audio_mfcc_dim=cfg.audio_mfcc_dim,
             audio_time_dim=cfg.audio_time_dim,
             num_workers=cfg.num_workers,
+            text_only=cfg.text_only,
             shuffle=True,
         )
         val_loader = NFTDataLoader(**val_loader_kwargs)
@@ -184,7 +206,7 @@ def train(cfg: ExpConfigs):
         for i, batch in enumerate(iter(train_loader)):
             progress = epoch + i / len(train_loader)
 
-            texts, text_lens, image_feat, video_feat, audio_feat, label = [
+            ids, texts, text_lens, image_feat, video_feat, audio_feat, label = [
                 x.to(device) for x in batch
             ]
             answers = label.squeeze()
@@ -289,16 +311,21 @@ def train(cfg: ExpConfigs):
         )
 
         if cfg.val_flag:
-            valid_acc = evaluate(cfg, model, val_loader, device)
+            valid_acc, all_ids, all_labels, all_preds = evaluate(
+                cfg, model, val_loader, device, return_preds=True
+            )
 
             if (valid_acc > best_val and cfg.task == "classification") or (
                 valid_acc < best_val and cfg.task == "regression"
             ):
                 best_val = valid_acc
+                logger.info("*** Current Best = {:.4f}".format(best_val))
                 # Save best model
                 ckpt_path = os.path.join(cfg.ckpt_dir, "best_model.pt")
                 save_checkpoint(epoch, model, optimizer, model_kwargs_tosave, ckpt_path)
-                logger.info("***Current Best = {:.4f}".format(best_val))
+                # Save predictions
+                preds_path = os.path.join(cfg.exp_dir, "best_preds.txt")
+                save_predictions(all_ids, all_labels, all_preds, preds_path)
 
                 sys.stdout.write("\n >>>>>> save to %s <<<<<< \n" % (ckpt_path))
                 sys.stdout.flush()
@@ -316,12 +343,13 @@ def evaluate(cfg, model, dataloader, device, return_preds=False):
     model.eval()
     print("validating...")
     total_acc, count = 0.0, 0
+    all_ids = []
     all_labels = []
     all_preds = []
 
     with torch.no_grad():
         for batch in tqdm(dataloader, total=len(dataloader)):
-            texts, text_lens, image_feat, video_feat, audio_feat, label = [
+            ids, texts, text_lens, image_feat, video_feat, audio_feat, label = [
                 x.to(device) for x in batch
             ]
 
@@ -335,10 +363,13 @@ def evaluate(cfg, model, dataloader, device, return_preds=False):
             agreeings = preds == answers
 
             if return_preds:
-                labels_list = list(answers.cpu().numpy())
+                id_list = ids.cpu().numpy().tolist()
+                all_ids.extend(id_list)
+
+                labels_list = answers.cpu().numpy().tolist()
                 all_labels.extend(labels_list)
 
-                preds_list = list(preds.cpu().numpy())
+                preds_list = preds.cpu().numpy().tolist()
                 all_preds.extend(preds_list)
 
             total_acc += agreeings.float().sum().item()
@@ -348,7 +379,7 @@ def evaluate(cfg, model, dataloader, device, return_preds=False):
     if not return_preds:
         return accuracy
     else:
-        return (accuracy, all_labels, all_preds)
+        return (accuracy, all_ids, all_labels, all_preds)
 
 
 def step_decay(cfg, optimizer):
@@ -367,6 +398,24 @@ def batch_accuracy(predicted, true):
     predicted = predicted.detach().argmax(1)
     agreeing = predicted == true
     return agreeing
+
+
+def save_predictions(
+    all_ids: List[int],
+    all_labels: List[int],
+    all_preds: List[int],
+    filename: str,
+):
+    """ Save predictions to file """
+    data = dict(
+        ids=all_ids,
+        labels=all_labels,
+        preds=all_preds,
+    )
+    with open(filename, "w") as f:
+        json.dump(data, f)
+
+    return
 
 
 def save_checkpoint(epoch, model, optimizer, model_kwargs, filename):
@@ -394,7 +443,7 @@ def main():
     # init logger
     global logger
     logger = get_logger(log_dir=cfg.log_dir, stream_only=cfg.stream_log_only)
-    logger.setLevel(logging.ERROR)
+    logger.setLevel("INFO")
 
     # Set random seed
     torch.manual_seed(cfg.seed)

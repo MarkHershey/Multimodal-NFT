@@ -14,7 +14,7 @@ default_configs = dict(
     batch_size=64,
     optimizer="Adam",
     learning_rate=0.0001,
-    max_epochs=30,
+    max_epochs=1,
     save_dir="results/",  # directory to save checkpoints
     # Restore training
     restore_flag=False,  # whether to restore training from checkpoint
@@ -26,6 +26,8 @@ default_configs = dict(
     image_feat_h5="data/image_feats_resnet34_512.h5",  # preprocessed image feature h5 file path
     video_feat_h5="data/video_feats.h5",  # preprocessed video feature h5 file path
     audio_feat_h5="data/audio_feats.h5",  # preprocessed audio feature h5 file path
+    filter_date=True,  # whether to filter out old data samples based on transaction_time
+    text_only=False,  # whether to include text only data
     # Model related
     word_dim=300,  # word embedding dimension
     text_rnn_dim=256,  # image feature dimension

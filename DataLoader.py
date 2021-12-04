@@ -31,6 +31,7 @@ class NFTDataset(Dataset):
         motion_in_dim: int,
         audio_mfcc_dim: int,
         audio_time_dim: int,
+        text_only: bool = False,
     ):
         self.texts_ids = texts_ids
         self.texts_encoded = torch.LongTensor(texts_encoded)
@@ -48,6 +49,7 @@ class NFTDataset(Dataset):
         self.motion_in_dim = motion_in_dim
         self.audio_mfcc_dim = audio_mfcc_dim
         self.audio_time_dim = audio_time_dim
+        self.text_only = text_only
 
     def __len__(self):
         # this is number of samples
@@ -77,21 +79,21 @@ class NFTDataset(Dataset):
         text_length = self.texts_lengths[text_idx]
 
         # get image features
-        if sample_id in self.image_id_to_h5_idx:
+        if not self.text_only and sample_id in self.image_id_to_h5_idx:
             image_idx = self.image_id_to_h5_idx[sample_id]
             image_feat = self.get_image_feat(image_idx)
         else:
             image_feat = torch.zeros(self.visual_in_dim)
 
         # get video features
-        if sample_id in self.video_id_to_h5_idx:
+        if not self.text_only and sample_id in self.video_id_to_h5_idx:
             video_idx = self.video_id_to_h5_idx[sample_id]
             video_feat = self.get_video_feat(video_idx)
         else:
             video_feat = torch.zeros(self.motion_in_frames, self.motion_in_dim)
 
         # get audio features
-        if sample_id in self.audio_id_to_h5_idx:
+        if not self.text_only and sample_id in self.audio_id_to_h5_idx:
             audio_idx = self.audio_id_to_h5_idx[sample_id]
             audio_feat = self.get_audio_feat(audio_idx)
         else:
@@ -101,6 +103,7 @@ class NFTDataset(Dataset):
         label: int = self.labels[sample_id]
 
         return (
+            sample_id,
             text_encoded,
             text_length,
             image_feat,
@@ -135,6 +138,8 @@ class NFTDataLoader(DataLoader):
         self.motion_in_dim: int = kwargs.pop("motion_in_dim")
         self.audio_mfcc_dim: int = kwargs.pop("audio_mfcc_dim")
         self.audio_time_dim: int = kwargs.pop("audio_time_dim")
+
+        self.text_only: bool = kwargs.pop("text_only")
 
         # get pickle object
         print(f"loading text_pickle from {self.text_pickle}")
@@ -202,6 +207,7 @@ class NFTDataLoader(DataLoader):
             motion_in_dim=self.motion_in_dim,
             audio_mfcc_dim=self.audio_mfcc_dim,
             audio_time_dim=self.audio_time_dim,
+            text_only=self.text_only,
         )
         # 3. Pass Dataset to super to complete initialization of DataLoader.
         super().__init__(self.dataset, **kwargs)
