@@ -24,9 +24,13 @@ class NFTDataset(Dataset):
         image_id_to_h5_idx: Dict[int, int],
         video_feat_h5: Union[str, Path],
         video_id_to_h5_idx: Dict[int, int],
+        audio_feat_h5: Union[str, Path],
+        audio_id_to_h5_idx: Dict[int, int],
         visual_in_dim: int,
         motion_in_frames: int,
         motion_in_dim: int,
+        audio_mfcc_dim: int,
+        audio_time_dim: int,
     ):
         self.texts_ids = texts_ids
         self.texts_encoded = torch.LongTensor(texts_encoded)
@@ -37,9 +41,13 @@ class NFTDataset(Dataset):
         self.image_id_to_h5_idx = image_id_to_h5_idx
         self.video_feat_h5 = video_feat_h5
         self.video_id_to_h5_idx = video_id_to_h5_idx
+        self.audio_feat_h5 = audio_feat_h5
+        self.audio_id_to_h5_idx = audio_id_to_h5_idx
         self.visual_in_dim = visual_in_dim
         self.motion_in_frames = motion_in_frames
         self.motion_in_dim = motion_in_dim
+        self.audio_mfcc_dim = audio_mfcc_dim
+        self.audio_time_dim = audio_time_dim
 
     def __len__(self):
         # this is number of samples
@@ -54,6 +62,11 @@ class NFTDataset(Dataset):
         with h5py.File(self.video_feat_h5, "r") as f:
             video_feat = f["video_features"][video_idx]
         return torch.from_numpy(video_feat)
+
+    def get_audio_feat(self, audio_idx):
+        with h5py.File(self.audio_feat_h5, "r") as f:
+            audio_feat = f["audio_features"][audio_idx]
+        return torch.from_numpy(audio_feat)
 
     def __getitem__(self, idx):
         sample_id = self.label_ids[idx]
@@ -78,7 +91,11 @@ class NFTDataset(Dataset):
             video_feat = torch.zeros(self.motion_in_frames, self.motion_in_dim)
 
         # get audio features
-        # TODO
+        if sample_id in self.audio_id_to_h5_idx:
+            audio_idx = self.audio_id_to_h5_idx[sample_id]
+            audio_feat = self.get_audio_feat(audio_idx)
+        else:
+            audio_feat = torch.zeros(self.audio_mfcc_dim, self.audio_time_dim)
 
         # get label
         label: int = self.labels[sample_id]
@@ -88,6 +105,7 @@ class NFTDataset(Dataset):
             text_length,
             image_feat,
             video_feat,
+            audio_feat,
             label,
         )
 
@@ -110,10 +128,13 @@ class NFTDataLoader(DataLoader):
         self.text_pickle = str(kwargs.pop("text_pickle"))
         self.image_feat_h5 = str(kwargs.pop("image_feat_h5"))
         self.video_feat_h5 = str(kwargs.pop("video_feat_h5"))
+        self.audio_feat_h5 = str(kwargs.pop("audio_feat_h5"))
 
         self.visual_in_dim: int = kwargs.pop("visual_in_dim")
         self.motion_in_frames: int = kwargs.pop("motion_in_frames")
         self.motion_in_dim: int = kwargs.pop("motion_in_dim")
+        self.audio_mfcc_dim: int = kwargs.pop("audio_mfcc_dim")
+        self.audio_time_dim: int = kwargs.pop("audio_time_dim")
 
         # get pickle object
         print(f"loading text_pickle from {self.text_pickle}")
@@ -157,6 +178,13 @@ class NFTDataLoader(DataLoader):
             video_idx_to_id = f["ids"][()]
         video_id_to_h5_idx = {str(vid): i for i, vid in enumerate(video_idx_to_id)}
 
+        # get audio_id_to_h5_idx
+        print(f"loading audio feature from {self.audio_feat_h5}")
+        assert Path(self.audio_feat_h5).is_file()
+        with h5py.File(self.audio_feat_h5, "r") as f:
+            audio_idx_to_id = f["ids"][()]
+        audio_id_to_h5_idx = {str(vid): i for i, vid in enumerate(audio_idx_to_id)}
+
         # 2. Build Dataset.
         self.dataset = NFTDataset(
             texts_ids=texts_ids,
@@ -167,9 +195,13 @@ class NFTDataLoader(DataLoader):
             image_id_to_h5_idx=image_id_to_h5_idx,
             video_feat_h5=self.video_feat_h5,
             video_id_to_h5_idx=video_id_to_h5_idx,
+            audio_feat_h5=self.audio_feat_h5,
+            audio_id_to_h5_idx=audio_id_to_h5_idx,
             visual_in_dim=self.visual_in_dim,
             motion_in_frames=self.motion_in_frames,
             motion_in_dim=self.motion_in_dim,
+            audio_mfcc_dim=self.audio_mfcc_dim,
+            audio_time_dim=self.audio_time_dim,
         )
         # 3. Pass Dataset to super to complete initialization of DataLoader.
         super().__init__(self.dataset, **kwargs)

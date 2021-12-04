@@ -45,9 +45,12 @@ def train(cfg: ExpConfigs):
         text_pickle=cfg.text_pickle,
         image_feat_h5=cfg.image_feat_h5,
         video_feat_h5=cfg.video_feat_h5,
+        audio_feat_h5=cfg.audio_feat_h5,
         visual_in_dim=cfg.visual_in_dim,
         motion_in_frames=cfg.motion_in_frames,
         motion_in_dim=cfg.motion_in_dim,
+        audio_mfcc_dim=cfg.audio_mfcc_dim,
+        audio_time_dim=cfg.audio_time_dim,
         num_workers=cfg.num_workers,
         shuffle=True,
     )
@@ -63,9 +66,12 @@ def train(cfg: ExpConfigs):
             text_pickle=cfg.text_pickle,
             image_feat_h5=cfg.image_feat_h5,
             video_feat_h5=cfg.video_feat_h5,
+            audio_feat_h5=cfg.audio_feat_h5,
             visual_in_dim=cfg.visual_in_dim,
             motion_in_frames=cfg.motion_in_frames,
             motion_in_dim=cfg.motion_in_dim,
+            audio_mfcc_dim=cfg.audio_mfcc_dim,
+            audio_time_dim=cfg.audio_time_dim,
             num_workers=cfg.num_workers,
             shuffle=True,
         )
@@ -100,6 +106,9 @@ def train(cfg: ExpConfigs):
         motion_in_frames=cfg.motion_in_frames,
         motion_in_dim=cfg.motion_in_dim,
         motion_mid_dim=cfg.motion_mid_dim,
+        audio_mfcc_dim=cfg.audio_mfcc_dim,
+        audio_time_dim=cfg.audio_time_dim,
+        audio_mid_dim=cfg.audio_mid_dim,
         agg_in_dim=cfg.agg_in_dim,
         agg_mid_dim=cfg.agg_mid_dim,
         agg_out_dim=cfg.agg_out_dim,
@@ -175,14 +184,14 @@ def train(cfg: ExpConfigs):
         for i, batch in enumerate(iter(train_loader)):
             progress = epoch + i / len(train_loader)
 
-            text_encoded, text_length, image_feat, video_feat, label = [
+            texts, text_lens, image_feat, video_feat, audio_feat, label = [
                 x.to(device) for x in batch
             ]
             answers = label.squeeze()
 
             optimizer.zero_grad()
 
-            pred = model(text_encoded, text_length, image_feat, video_feat)
+            pred = model(texts, text_lens, image_feat, video_feat, audio_feat)
 
             if cfg.task == "classification":
                 loss = criterion(pred, answers)
@@ -312,13 +321,15 @@ def evaluate(cfg, model, dataloader, device, return_preds=False):
 
     with torch.no_grad():
         for batch in tqdm(dataloader, total=len(dataloader)):
-            text_encoded, text_length, image_feat, video_feat, label = [
+            texts, text_lens, image_feat, video_feat, audio_feat, label = [
                 x.to(device) for x in batch
             ]
 
             answers = label if (cfg.batch_size == 1) else label.squeeze()
 
-            logits = model(text_encoded, text_length, image_feat, video_feat).to(device)
+            logits = model(texts, text_lens, image_feat, video_feat, audio_feat).to(
+                device
+            )
 
             preds = logits.detach().argmax(1)
             agreeings = preds == answers

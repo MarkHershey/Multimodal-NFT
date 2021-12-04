@@ -1,4 +1,5 @@
-"""Multi-Modal NFT"""
+"""Multi-Modal NFT model"""
+
 import numpy as np
 import torch
 import torch.nn as nn
@@ -37,11 +38,11 @@ class TextualInputModule(nn.Module):
         self.text_dropout = nn.Dropout(p=0.18)
         self.fc = nn.Linear(rnn_dim, out_dim)
 
-    def forward(self, texts, text_len: int):
+    def forward(self, texts, text_lens: int):
         """
         Args:
             texts: [Tensor] (batch_size, max_text_len)
-            text_len: [Tensor] (batch_size)
+            text_lens: [Tensor] (batch_size)
         return:
             texts representation [Tensor] (batch_size, module_dim)
         """
@@ -52,7 +53,7 @@ class TextualInputModule(nn.Module):
         # Ref: https://gist.github.com/HarshTrivedi/f4e7293e941b17d19058f6fb90ab0fec
         embed = nn.utils.rnn.pack_padded_sequence(
             input=embed,  # padded batch of variable length sequences
-            lengths=text_len.cpu().numpy(),  #  list of sequence lengths of each batch element
+            lengths=text_lens.cpu().numpy(),  #  list of sequence lengths of each batch element
             batch_first=True,  # if True, the input is expected in B x T x * format.
             enforce_sorted=False,  # If False, the input will get sorted unconditionally
         )
@@ -125,16 +126,29 @@ class MotionVisualInputModule(nn.Module):
 
 
 class AudioInputModule(nn.Module):
-    def __init__(self, in_dim: int = 1000, out_dim: int = 256):
+    def __init__(self, mfcc_dim: int, time_dim: int, mid_dim: int, out_dim: int):
         super(AudioInputModule, self).__init__()
-        # TODO: Implement Audio Input Module
-        ...
-        raise NotImplementedError()
 
-    def forward(self, audio_feat):
-        # TODO: Implement Audio Input Module
-        ...
-        raise NotImplementedError()
+        self.conv = nn.Conv1d(in_channels=mfcc_dim, out_channels=mid_dim, kernel_size=1)
+        self.temporal = nn.Linear(in_features=time_dim * mid_dim, out_features=out_dim)
+
+    def forward(self, feat):
+        """
+        Args:
+            feat: [Tensor] (batch_size, mfcc_dim, time_dim)
+        return:
+            output representation [Tensor] (batch_size, out_dim)
+        """
+
+        batch_size = feat.shape[0]
+        feat = self.conv(feat)  # (batch_size, mid_dim, time_dim)
+        feat = feat.permute(0, 2, 1).reshape(
+            batch_size, -1
+        )  # (batch_size, time_dim*mid_dim)
+        output = self.temporal(feat)  # (batch_size, out_dim)
+
+        # print(f"AudioInputModule output.shape: {output.shape}")
+        return output
 
 
 class FeatureAggregation(nn.Module):
@@ -144,25 +158,28 @@ class FeatureAggregation(nn.Module):
         self.t_proj = nn.Linear(in_dim, mid_dim, bias=False)
         self.v_proj = nn.Linear(in_dim, mid_dim, bias=False)
         self.m_proj = nn.Linear(in_dim, mid_dim, bias=False)
+        self.a_proj = nn.Linear(in_dim, mid_dim, bias=False)
 
-        self.fusion = nn.Linear(3 * mid_dim, out_dim)
+        self.fusion = nn.Linear(4 * mid_dim, out_dim)
 
         self.activation = nn.ELU()
         self.dropout = nn.Dropout(0.15)
 
-    def forward(self, textual_feat, visual_feat, motion_feat):
+    def forward(self, textual_feat, visual_feat, motion_feat, audio_feat):
         """
         Args:
             textual_feat: [Tensor] (batch_size, in_dim)
             visual_feat: [Tensor] (batch_size, in_dim)
             motion_feat: [Tensor] (batch_size, in_dim)
+            audio_feat: [Tensor] (batch_size, in_dim)
         return:
             output representation [Tensor] (batch_size, out_dim)
         """
         t_proj = self.t_proj(textual_feat)
         v_proj = self.v_proj(visual_feat)
         m_proj = self.m_proj(motion_feat)
-        cat_feat = torch.cat([t_proj, v_proj, m_proj], dim=1)
+        a_proj = self.a_proj(audio_feat)
+        cat_feat = torch.cat([t_proj, v_proj, m_proj, a_proj], dim=1)
 
         output = self.fusion(cat_feat)
         output = self.activation(self.dropout(output))
@@ -200,6 +217,9 @@ class MMNFT(nn.Module):
         motion_in_frames: int,
         motion_in_dim: int,
         motion_mid_dim: int,
+        audio_mfcc_dim: int,
+        audio_time_dim: int,
+        audio_mid_dim: int,
         agg_in_dim: int,
         agg_mid_dim: int,
         agg_out_dim: int,
@@ -223,6 +243,12 @@ class MMNFT(nn.Module):
             mid_dim=motion_mid_dim,
             out_dim=agg_out_dim,
         )
+        self.audio_input_module = AudioInputModule(
+            mfcc_dim=audio_mfcc_dim,
+            time_dim=audio_time_dim,
+            mid_dim=audio_mid_dim,
+            out_dim=agg_out_dim,
+        )
         self.feature_aggregation = FeatureAggregation(
             in_dim=agg_in_dim,
             mid_dim=agg_mid_dim,
@@ -236,16 +262,20 @@ class MMNFT(nn.Module):
         else:
             raise NotImplementedError()
 
-    def forward(self, text_encoded, text_length, image_feat, video_feat):
+    def forward(self, texts, text_lens, image_feat, video_feat, audio_feat):
         # Feature Embedding
-        textual_feat = self.textual_input_module(
-            text_encoded, text_length
-        )  # (B, agg_in_dim)
+        textual_feat = self.textual_input_module(texts, text_lens)  # (B, agg_in_dim)
         image_feat = self.still_visual_input_module(image_feat)  # (B, agg_in_dim)
         video_feat = self.motion_visual_input_module(video_feat)  # (B, agg_in_dim)
+        audio_feat = self.audio_input_module(audio_feat)  # (B, agg_in_dim)
 
         # Multi-modal Fusion
-        agg_feat = self.feature_aggregation(textual_feat, image_feat, video_feat)
+        agg_feat = self.feature_aggregation(
+            textual_feat,
+            image_feat,
+            video_feat,
+            audio_feat,
+        )
 
         # Classification / Regression Head
         out = self.output_module(agg_feat)
