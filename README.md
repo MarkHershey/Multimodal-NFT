@@ -38,5 +38,24 @@
 
 ---
 
+Experiment Batch 1
+
+| Experiment         | Test Accuracy | Remark                       | Best Epoch |
+| ------------------ | ------------- | ---------------------------- | ---------- |
+| `base`             | 0.4400        | B=64, resnet34               | 14         |
+| `resnet50`         | 0.4385        | B=64, resnet50               | 8          |
+| `pure_text`        | 0.4400        | B=64, resnet34               | 14         |
+| `base_filter`      | 0.4689        | B=64, resnet34, 2020 onwards | 17         |
+| `resnet50_filter`  | 0.4705        | B=64, resnet50, 2020 onwards | 28         |
+| `pure_text_filter` | 0.4689        | B=64, resnet34, 2020 onwards | 17         |
+
+---
+
+Experiment Batch 2
+
 | Experiment | Test Accuracy | Remark | Best Epoch |
 | ---------- | ------------- | ------ | ---------- |
+| `exp_b3`   | ------------- | ------ | ---------- |
+| `exp_b10`  | ------------- | ------ | ---------- |
+| `exp_b20`  | ------------- | ------ | ---------- |
+| `exp_b100` | ------------- | ------ | ---------- |
