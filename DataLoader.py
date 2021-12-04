@@ -139,7 +139,19 @@ class NFTDataLoader(DataLoader):
         self.audio_mfcc_dim: int = kwargs.pop("audio_mfcc_dim")
         self.audio_time_dim: int = kwargs.pop("audio_time_dim")
 
+        self.num_classes: int = kwargs.pop("num_classes")
         self.text_only: bool = kwargs.pop("text_only")
+
+        if self.num_classes == 10:
+            label_key = "price_class"
+        elif self.num_classes == 3:
+            label_key = "price_bin_3_class"
+        elif self.num_classes == 20:
+            label_key = "price_bin_20_class"
+        elif self.num_classes == 100:
+            label_key = "price_bin_100_class"
+        else:
+            raise ValueError("num_classes not supported")
 
         # get pickle object
         print(f"loading text_pickle from {self.text_pickle}")
@@ -163,7 +175,7 @@ class NFTDataLoader(DataLoader):
             with json_path.open() as f:
                 data = json.load(f)
                 data_id: int = data["id"]
-                data_label: int = data["price_class"]
+                data_label: int = data[label_key]
                 labels[data_id] = data_label
                 f.close()
         # self.labels = labels
@@ -238,6 +250,7 @@ if __name__ == "__main__":
         "motion_in_dim": 512,
         "audio_mfcc_dim": 256,
         "audio_time_dim": 3600,
+        "num_classes": 10,
         "text_only": False,
         "num_workers": 0,
         "shuffle": True,

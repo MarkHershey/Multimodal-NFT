@@ -71,8 +71,9 @@ def train(cfg: ExpConfigs):
         motion_in_dim=cfg.motion_in_dim,
         audio_mfcc_dim=cfg.audio_mfcc_dim,
         audio_time_dim=cfg.audio_time_dim,
-        num_workers=cfg.num_workers,
+        num_classes=cfg.num_classes,
         text_only=cfg.text_only,
+        num_workers=cfg.num_workers,
         shuffle=True,
     )
     train_loader = NFTDataLoader(**train_loader_kwargs)
@@ -93,8 +94,9 @@ def train(cfg: ExpConfigs):
             motion_in_dim=cfg.motion_in_dim,
             audio_mfcc_dim=cfg.audio_mfcc_dim,
             audio_time_dim=cfg.audio_time_dim,
-            num_workers=cfg.num_workers,
+            num_classes=cfg.num_classes,
             text_only=cfg.text_only,
+            num_workers=cfg.num_workers,
             shuffle=True,
         )
         val_loader = NFTDataLoader(**val_loader_kwargs)
