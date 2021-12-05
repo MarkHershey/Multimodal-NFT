@@ -1,61 +1,119 @@
-# Multimodal-NFT
+# Multi-modal NFT Price Prediction
 
--   Multi-Modal
-    -   Images
-        -   `image/jpeg`
-        -   `image/png`
-        -   `image/svg+xml`
-    -   Audio
-    -   Video (with audio)
-    -   Video (without audio) / Images sequence
-        -   `image/gif`
-    -   Text Descriptions
-        -   `text/plain`
+SUTD 50.038 Computational Data Science (Fall 2021) - **Team Numpie**
 
-## Feature Extraction
+![](https://img.shields.io/badge/Team-Numpie-green?style=for-the-badge)
+![](https://img.shields.io/github/license/MarkHershey/Multimodal-NFT?style=for-the-badge)
 
--   Text
-    -   GloVe-300
--   Image
-    -   Resnet
--   Image Sequence
-    -   Resnet18
--   Audio
-    -   TODO
+## Abstract
 
-## Training Result
+The recent rise in cryptocurrency and blockchain technologies has led to a surge in interest in Non-Fungible Tokens (NFTs), which are uniquely identified digital assets that represent virtual objects such as art, music, and in-game characters. Public interest in NFT has exploded due to skyrocketing NFT prices, however, the overall structure and value of an NFT is still a mystery, largely because the diversity of virtual assets makes it difficult to model its price across different mediums and domains.
 
-| Experiment  | Test Accuracy | Remark             | Best Epoch |
-| ----------- | ------------- | ------------------ | ---------- |
-| `exp18`     | 0.4443        | freeze glove, B=16 | 9          |
-| `exp18-64`  | 0.4495        | freeze glove, B=64 | 13         |
-| `exp18-64L` | 0.4452        | train glove, B=64  | 9          |
-| `exp34`     | 0.4443        | freeze glove, B=16 | 8          |
-| `exp34`     | 0.4443        | freeze glove, B=16 | 8          |
-| `exp50`     | 0.445         | freeze glove, B=16 | 16         |
-| `exp50L`    | 0.4371        | train glove, B=16  | 4          |
-| `exp101`    | 0.4452        | freeze glove, B=16 | 16         |
+To understand NFT prices better across domains, we introduce a new dataset that consists of 10454 diverse multi-media NFTs across different NFT categories, consisting of music-, image-, text-, video-based NFT media files and labeled with its transactional data, all collected from OpenSea. This is done in order to conduct price estimation across different forms of NFTs. We also propose a multi-modal deep learning-based network that is capable of predicting prices universally regardless of the forms of the NFT assets.
 
----
+## NFT Dataset
 
-Experiment Batch 1
+-   Dataset consists of 10454 NFTs, each of which has a corresponding JSON file and one or more media files in the format of `.jpg`, `.gif`, `.mp4`, and/or `.mp3`.
+-   All JSON files is contained here [`data/NFT-JSON.zip`](data/NFT-JSON.zip), please extract it to `data/json` directory.
+-   All media files can be downloaded [[here]](https://drive.google.com/file/d/1dS4KSPYtlwGPN7uI6EQE157L5wDozX8C/view?usp=sharing). Please download it and extract the files to `data/media` directory.
 
-| Experiment         | Test Accuracy | Remark                       | Best Epoch |
-| ------------------ | ------------- | ---------------------------- | ---------- |
-| `base`             | 0.4400        | B=64, resnet34               | 14         |
-| `resnet50`         | 0.4385        | B=64, resnet50               | 8          |
-| `pure_text`        | 0.4400        | B=64, resnet34               | 14         |
-| `base_filter`      | 0.4689        | B=64, resnet34, 2020 onwards | 17         |
-| `resnet50_filter`  | 0.4705        | B=64, resnet50, 2020 onwards | 28         |
-| `pure_text_filter` | 0.4689        | B=64, resnet34, 2020 onwards | 17         |
+Example JSON Label:
 
----
+```json
+{
+    "id": 1234,
+    "name": "CryptoPunk #1284",
+    "description": null,
+    "collection_name": "CryptoPunks",
+    "collection_description": "CryptoPunks launched as a fixed set of 10,000 items in mid-2017 and became one of the inspirations for the ERC-721 standard. They have been featured in places like The New York Times, Christies of London, Art|Basel Miami, and The PBS NewsHour.",
+    "transaction_time": "2017-07-04T12:07:31",
+    "eth_price": "250000000000000000",
+    "eth_price_decimal": 18,
+    "usd_price": 273.303009,
+    "usd_volume": 687691008.0,
+    "usd_marketcap": 25425860777.0,
+    "media_filenames": ["01234.jpg"],
+    "has_audio_in_video": false,
+    "price_class": 0,
+    "price_bin_3_class": 0,
+    "price_bin_20_class": 1,
+    "price_bin_100_class": 7
+}
+```
 
-Experiment Batch 2
+## Model Training
 
-| Experiment | Test Accuracy | Remark | Best Epoch |
-| ---------- | ------------- | ------ | ---------- |
-| `exp_b3`   | 0.8001        | ------ | 13         |
-| `exp_b10`  | 0.4668        | ------ | 33         |
-| `exp_b20`  | 0.3025        | ------ | 34         |
-| `exp_b100` | 0.1042        | ------ | 33         |
+### Dependencies
+
+-   Python 3.6 or above
+-   [PyTorch 1.10](https://pytorch.org/)
+-   [`requirements.txt`](requirements.txt)
+
+1. Create a virtual environment
+
+```bash
+python3 -m venv venv && source venv/bin/activate
+```
+
+2. Install dependencies from [`requirements.txt`](requirements.txt) first
+
+```bash
+pip install -r requirements.txt
+```
+
+3. Install the PyTorch version that [suits your machine](https://pytorch.org/get-started/locally/), use GPU version whenever possible.
+
+```bash
+pip3 install torch torchvision torchaudio
+```
+
+### Preprocessing
+
+To extract the features from the NFT media files, we use the following preprocessing pipeline:
+
+-   [preprocess/process_audio.py](preprocess/process_audio.py)
+-   [preprocess/process_image.py](preprocess/process_image.py)
+-   [preprocess/process_motion.py](preprocess/process_motion.py)
+-   [preprocess/process_textual.py](preprocess/process_textual.py)
+
+Example command to extract features from audio files:
+
+```bash
+python preprocess/process_audio.py --json_dir data/json --media_dir data/media --features_dim 3600
+```
+
+Save all extracted features binary artifacts to `data/` directory.
+
+### Training
+
+Default training parameters are defined in the [`config.py`](config.py) file. You can define your own experiment by either directly modify the [`config.py`](config.py) file or use a config file like this [`cfgs/template.json`](cfgs/template.json). Any parameters defined in the config file will overwrite the default parameters.
+
+To run the training code with default configs:
+
+```bash
+python train.py
+```
+
+To run the training code with your own configs:
+
+```bash
+python train.py --cfg cfgs/template.json
+```
+
+-   Training logs, model weights for the best-performing model, and the best testing predictions outputs will be saved in the `results` directory by default.
+-   [run_exps.py](run_exps.py) helps you run a list of experiments in serial based on given a list of config files.
+
+## Citation
+
+If you use this code or dataset, please cite as follows:
+
+```bibtex
+@misc{Huang_MMNFT_2021,
+    author  = {Huang, He and Chan, Cawin and Poh, Princeton},
+    month   = {12},
+    title   = {{Multi-Modal NFT Price Prediction}},
+    url     = {https://github.com/MarkHershey/Multimodal-NFT},
+    version = {0.0.1},
+    year    = {2021}
+}
+```

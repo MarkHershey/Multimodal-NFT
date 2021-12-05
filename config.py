@@ -14,19 +14,19 @@ default_configs = dict(
     batch_size=64,
     optimizer="Adam",
     learning_rate=0.0001,
-    max_epochs=1,
+    max_epochs=30,
     save_dir="results/",  # directory to save checkpoints
     # Restore training
     restore_flag=False,  # whether to restore training from checkpoint
     restore_path="",  # path to checkpoint
     # Datasets related
     task="classification",  # classification or regression
-    json_dir="/home/mark/Data/NFT_Dataset/json",  # label json directory
+    json_dir="data/json",  # label json directory
     text_pickle="data/encoded_text.pickle",  # preprocessed text pickle file path
     image_feat_h5="data/image_feats_resnet34_512.h5",  # preprocessed image feature h5 file path
     video_feat_h5="data/video_feats.h5",  # preprocessed video feature h5 file path
     audio_feat_h5="data/audio_feats.h5",  # preprocessed audio feature h5 file path
-    filter_date=True,  # whether to filter out old data samples based on transaction_time
+    filter_date=False,  # whether to filter out old data samples based on transaction_time
     text_only=False,  # whether to include text only data
     # Model related
     word_dim=300,  # word embedding dimension
