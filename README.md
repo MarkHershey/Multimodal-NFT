@@ -24,7 +24,7 @@ Example JSON Label:
 {
     "id": 1234,
     "name": "CryptoPunk #1284",
-    "description": null,
+    "description": "",
     "collection_name": "CryptoPunks",
     "collection_description": "CryptoPunks launched as a fixed set of 10,000 items in mid-2017 and became one of the inspirations for the ERC-721 standard. They have been featured in places like The New York Times, Christies of London, Art|Basel Miami, and The PBS NewsHour.",
     "transaction_time": "2017-07-04T12:07:31",
@@ -118,3 +118,13 @@ If you use this code or dataset, please cite as follows:
     year    = {2021}
 }
 ```
+
+## Disclaimers
+
+-   [MIT License](LICENSE) Copyright (c) 2021
+-   This project is developed to fulfill the undergraduate course requirement of SUTD 50.038 Computational Data Science (Fall 2021).
+
+## Contributors
+
+-   [Cawin Chan](@Cawinchan)
+-   [Princeton Poh](@PrincetonPoh)
