@@ -3,7 +3,8 @@
 SUTD 50.038 Computational Data Science (Fall 2021) - **Team Numpie**
 
 ![](https://img.shields.io/badge/Team-Numpie-green?style=for-the-badge)
-![](https://img.shields.io/github/license/MarkHershey/Multimodal-NFT?style=for-the-badge)
+[![](https://img.shields.io/badge/License-MIT-blue?style=for-the-badge)](LICENSE)
+[![](https://img.shields.io/badge/code%20style-black-black?style=for-the-badge)](https://github.com/psf/black)
 
 ## Abstract
 
